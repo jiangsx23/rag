@@ -45,3 +45,7 @@ dist/
 
 # 运行时产物
 .service_pids.json
+
+# 私密/个人笔记（不上传 GitHub）
+KNOWN_PITFALLS.md
+docs/resume_talking_points.md

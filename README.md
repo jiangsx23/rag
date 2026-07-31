@@ -329,26 +329,6 @@ graph LR
 
 ---
 
-## 📝 简历话术
-
-```
-• 设计 ReAct Agent 编排框架，自主调度 6 个工具，复杂任务完成率 85%
-• 实现 Hybrid Search (BM25 + 向量 + BGE-Reranker)，Recall@10 从 0.72 提升至 0.91
-• GPU (RTX A1000) 推理加速，精排从 9.2s 降至 0.2s（42x），全链路从 35s 降至 5.5s
-• 引入 LLM-as-Judge 反思机制 + 置信度评估，幻觉率从 28% 降至 6%
-• 构建 100+ QA 人工评测集 + Ragas 评估体系，答案准确率 89%
-• 接入 Langfuse 全链路 trace，Agent 决策路径可解释、可追溯
-• 手写 ReAct 循环 80 行代替 LangChain AgentExecutor，面试能讲清每一行原理
-```
-
----
-
-## 🪤 已知坑
-
-详见 [`IMPLEMENTATION_STEPS.md`](IMPLEMENTATION_STEPS.md) 的「已知坑」章节和 [`docs/react_agent_tool_exception_postmortem.md`](docs/react_agent_tool_exception_postmortem.md)。
-
----
-
 ## 📄 License
 
 MIT
