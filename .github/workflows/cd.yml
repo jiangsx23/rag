@@ -1,0 +1,190 @@
+name: CD
+
+# CD Pipeline: 在 main 分支合并后自动构建 Docker 镜像并部署
+# 这是"持续部署"——代码合并即上线
+
+on:
+  push:
+    branches: [main]
+    # 触发条件：仅当以下路径变更时
+    paths:
+      - "core/**"
+      - "app/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch:  # 支持手动触发
+
+env:
+  REGISTRY: ghcr.io  # GitHub Container Registry
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================
+  # Job 1: 构建并推送 Docker 镜像
+  # ============================================================
+  build:
+    name: 🏗️ Build & Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # 推送镜像需要
+
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🏷️ 生成镜像 Tag
+        id: meta
+        run: |
+          # 多种 tag 策略：分支名、PR号、commit SHA、日期
+          BRANCH=$(echo ${{ github.ref }} | sed 's|refs/heads/||' | sed 's|/|-|g')
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          DATE=$(date +%Y%m%d)
+
+          # 组合 tags
+          TAGS="${BRANCH}-${SHORT_SHA},${BRANCH},${DATE}-${SHORT_SHA}"
+          # main 分支额外加 latest
+          if [ "$BRANCH" = "main" ]; then
+            TAGS="${TAGS},latest"
+          fi
+
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "📦 Tags: ${TAGS}"
+
+      - name: 🔐 登录 Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🛠️ 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ 构建并推送
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          # 推送到 GHCR
+          push: true
+          # 多个 tag
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags }}
+          # 构建缓存（加速）
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # 多平台构建
+          platforms: linux/amd64,linux/arm64
+          # 构建参数
+          build-args: |
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.tags }}
+
+      - name: 🔍 扫描镜像漏洞
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          format: "table"
+          exit-code: "0"
+          ignore-unfixed: true
+
+  # ============================================================
+  # Job 2: 部署到 Railway（示例：免费部署平台）
+  # ============================================================
+  deploy-railway:
+    name: 🚂 Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://rag-agent-system.up.railway.app
+
+    steps:
+      - name: 🚂 触发 Railway 部署
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: ${{ secrets.RAILWAY_SERVICE_ID }}
+
+      - name: ⏳ 等待部署完成
+        run: |
+          echo "⏳ Waiting 30s for deployment..."
+          sleep 30
+
+      - name: 🏥 健康检查
+        run: |
+          for i in {1..5}; do
+            echo "🏥 Health check attempt $i..."
+            if curl -f https://rag-agent-system.up.railway.app/health; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌ Health check failed"
+          exit 1
+
+  # ============================================================
+  # Job 3: 部署到 Vercel（Streamlit 前端）
+  # ============================================================
+  deploy-vercel:
+    name: ▲ Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+
+      - name: ▲ 部署到 Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          vercel-args: '--prod'
+
+  # ============================================================
+  # Job 4: 发布 GitHub Release
+  # ============================================================
+  release:
+    name: 📦 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## 🎉 Release ${{ github.ref_name }}
+
+            ### 📝 Changes
+            See the [CHANGELOG](CHANGELOG.md) for details.
+
+            ### 🐳 Docker Image
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ```
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

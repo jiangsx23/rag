@@ -1,0 +1,47 @@
+# ============================================
+# Prometheus 告警规则
+# ============================================
+
+groups:
+  - name: rag_alerts
+    interval: 30s
+    rules:
+      # API 响应时间告警
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API P95 延迟过高"
+          description: "API P95 延迟超过 5 秒，当前值: {{ $value }}s"
+
+      # API 错误率告警
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 错误率过高"
+          description: "5xx 错误率超过 5%，当前值: {{ $value | humanizePercentage }}"
+
+      # 服务下线告警
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务下线"
+          description: "{{ $labels.instance }} 已下线超过 2 分钟"
+
+      # Qdrant 内存使用告警
+      - alert: QdrantHighMemory
+        expr: process_resident_memory_bytes{job="qdrant"} > 1.5 * 1024 * 1024 * 1024  # 1.5GB
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Qdrant 内存使用过高"
+          description: "Qdrant 内存使用: {{ $value | humanize1024 }}B"

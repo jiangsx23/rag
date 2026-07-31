@@ -1,0 +1,16 @@
+flowchart TB
+    subgraph 测试策略
+        UNIT["1️⃣ 单元测试<br/>MagicMock 替掉 LLM<br/>毫秒级、CI 可跑"]
+        INT["2️⃣ 集成测试<br/>真实 Redis<br/>验证持久化"]
+
+    subgraph 模块测试
+        RAT["test_react_agent.py (7)<br/>5 条核心路径 + 2 边界"]
+        MEMT["test_memory.py (8)<br/>8 条记忆/改写/序列化"]
+        REFT["test_reflection.py (8)<br/>评估/重试/降级"]
+        HITLT["test_hitl.py (10)<br/>审批生命周期/清理"]
+    end
+    UNIT --> RAT
+    UNIT --> REFT
+    UNIT --> HITLT
+    INT --> MEMT
+    end

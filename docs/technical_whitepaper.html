@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业级 RAG + Agent 系统 — 技术白皮书</title>
+<style>
+  :root {
+    --primary: #2563eb; --primary-light: #3b82f6; --primary-bg: #eff6ff;
+    --success: #16a34a; --warning: #d97706; --danger: #dc2626;
+    --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+    --gray-300: #d1d5db; --gray-500: #6b7280; --gray-700: #374151; --gray-900: #111827;
+    --code-bg: #1e293b; --code-fg: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--gray-900); background: var(--gray-50); line-height: 1.7; font-size: 15px; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #2563eb 100%); color:#fff; padding:64px 0 48px; text-align:center; }
+  .hero h1 { font-size:2rem; font-weight:800; margin-bottom:8px; letter-spacing:-.5px; }
+  .hero p { font-size:1.05rem; opacity:.8; margin-bottom:20px; }
+  .hero .meta { display:flex; justify-content:center; gap:32px; flex-wrap:wrap; font-size:.85rem; opacity:.7; }
+
+  h2 { font-size:1.35rem; font-weight:700; margin:48px 0 16px; padding-bottom:8px; border-bottom:3px solid var(--primary); display:flex; align-items:center; gap:10px; }
+  h3 { font-size:1.1rem; font-weight:700; margin:32px 0 12px; color:var(--gray-700); }
+  h4 { font-size:.95rem; font-weight:700; margin:20px 0 8px; color:var(--gray-700); }
+  section { padding: 0 0 8px; }
+  p { margin-bottom:12px; color:var(--gray-700); }
+  ul, ol { margin:8px 0 16px 20px; }
+  li { margin-bottom:4px; color:var(--gray-700); }
+
+  .card { background:#fff; border-radius:10px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; margin-bottom:16px; }
+
+  /* Mermaid wrapper */
+  .mermaid-box { background:#fff; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin:16px 0 24px; overflow-x:auto; text-align:center; }
+  .mermaid-box svg { max-width:100%; height:auto; }
+
+  /* Fallback when CDN fails */
+  .mermaid-fallback { display:none; background:#f8f9fa; border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin:16px 0 24px; font-family:'JetBrains Mono',monospace; font-size:.82rem; overflow-x:auto; white-space:pre-wrap; }
+  .mermaid-fallback .hint { color:#dc2626; font-weight:600; margin-bottom:8px; font-family:-apple-system,sans-serif; font-size:.85rem; }
+  .mermaid-fallback .hint span { color:#6b7280; font-weight:400; }
+
+  /* Code */
+  pre { background:var(--code-bg); color:var(--code-fg); border-radius:8px; padding:16px 20px; overflow-x:auto; font-size:.82rem; line-height:1.6; margin:12px 0 20px; tab-size:2; }
+  code { font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace; }
+  p code, li code { background:#e8ecf2; color:#1e293b; padding:1px 6px; border-radius:4px; font-size:.82rem; }
+
+  table { width:100%; border-collapse:collapse; font-size:.87rem; margin:12px 0 20px; }
+  th,td { padding:8px 12px; text-align:left; border-bottom:1px solid var(--gray-200); }
+  th { background:var(--gray-100); font-weight:600; }
+  tr:hover td { background:var(--gray-50); }
+
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:.72rem; font-weight:600; }
+  .tag.blue { background:#dbeafe; color:#1d4ed8; }
+  .tag.green { background:#dcfce7; color:#15803d; }
+  .tag.purple { background:#f3e8ff; color:#7c3aed; }
+  .tag.red { background:#fee2e2; color:#b91c1c; }
+
+  .rationale { background:#f0fdf4; border-left:4px solid var(--success); border-radius:6px; padding:16px 20px; margin:12px 0 20px; }
+  .rationale h4 { color:var(--success); margin:0 0 6px; }
+  .rationale p { margin:0; font-size:.9rem; }
+
+  .pitfall { background:#fef2f2; border-left:4px solid var(--danger); border-radius:6px; padding:16px 20px; margin:12px 0 20px; }
+  .pitfall h4 { color:var(--danger); margin:0 0 6px; }
+  .pitfall p { margin:0 0 4px; font-size:.9rem; }
+
+  .callout { background:#eff6ff; border-left:4px solid var(--primary); border-radius:6px; padding:14px 18px; margin:12px 0 20px; font-size:.9rem; }
+  .callout strong { color:var(--primary); }
+
+  .diagram-row { display:flex; gap:16px; flex-wrap:wrap; }
+  .diagram-row .mermaid-box { flex:1; min-width:280px; }
+
+  @media (max-width:640px) { .hero h1{font-size:1.4rem;} .container{padding:0 16px;} }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="container">
+    <h1>📚 企业级 RAG + Agent 系统 — 技术白皮书</h1>
+    <p>手写 ReAct Agent · 混合检索 · LLM-as-Judge 反思 · HITL 人机协作 — 从零搭建面试级 RAG 系统</p>
+    <div class="meta">
+      <span>📅 2026-07</span> <span>🐍 Python 3.11</span>
+      <span>🧪 35 测试用例</span> <span>📁 15 核心模块</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ==================== 1. INTRO ==================== -->
+<section id="intro">
+<h2>1️⃣ 项目简介</h2>
+<p>这是一个从零搭建的企业级 RAG + Agent 智能问答系统，核心特点：</p>
+<ul>
+  <li><strong>不依赖 LangChain AgentExecutor</strong> — ReAct 循环手写 80 行，面试能讲清每一行原理</li>
+  <li><strong>混合检索</strong> — BM25 + 向量检索 + RRF 融合 + BGE Reranker 精排</li>
+  <li><strong>LLM-as-Judge</strong> — 独立 Judge LLM 对答案做 5 维度评估，低于阈值自动重写</li>
+  <li><strong>HITL 人机协作</strong> — 高风险操作（send_email）执行前暂停，等待人工审批</li>
+  <li><strong>全链路可观测</strong> — Langfuse trace 覆盖每次调用</li>
+</ul>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart TB
+    subgraph R1[" "]
+        direction LR
+        subgraph A["数据接入"]
+            PARSER["DocumentParser&lt;br&gt;Unstructured 解析 PDF/DOCX"]
+            CHUNKER["SmartChunker&lt;br&gt;表格独立 + 文本递归切分"]
+            EMBED["BGEEmbedder&lt;br&gt;BGE-M3 向量化"]
+            INGEST["scripts/ingest.py 写入 Qdrant"]
+            PARSER --> CHUNKER --> EMBED --> INGEST
+        end
+        subgraph B["推理管道"]
+            API["FastAPI + Streamlit"]
+            MEM["MemoryManager Redis 记忆 + Query 改写"]
+            RET["HybridRetriever BM25 + 向量 + RRF"]
+            RERANK["BGEReranker 精排 top 5"]
+            GEN["Generator DeepSeek-Chat"]
+            REFL["ReflectionModule LLM-as-Judge"]
+            AGENT["ReActAgent 80 行手写循环"]
+            HITLG["HITLGuard 人工审批"]
+            OBS["observability.py Langfuse 封装"]
+            API --> MEM --> RET --> RERANK --> GEN --> REFL
+            API --> AGENT --> HITLG
+            AGENT --> GEN
+            REFL -.-> GEN
+            OBS -.- API
+            OBS -.- AGENT
+            OBS -.- GEN
+        end
+    end
+    subgraph C["交付物"]
+        DOC["docs/ 复盘文档"]
+        EVAL["eval/ 评测体系"]
+        README["README.md"]
+    end
+</div></div>
+</section>
+
+<!-- ==================== 2. TECH CHOICE ==================== -->
+<section id="tech-choice">
+<h2>2️⃣ 技术选型理由</h2>
+
+<div class="card-grid">
+  <div class="card">
+    <h4 style="margin:0 0 6px;">🦙 DeepSeek-Chat</h4>
+    <div class="rationale" style="margin:0;">
+      <p><strong>为什么不是 GPT-4o / Claude?</strong> 成本差 10×，DeepSeek 在中文 RAG 场景差距 &lt;3%。通过 <code>langchain-deepseek</code> 切换只需改一行模型名。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="margin:0 0 6px;">🔤 BGE-M3 + BGE-Reranker</h4>
+    <div class="rationale" style="margin:0;">
+      <p><strong>为什么不是 OpenAI Embedding?</strong> BGE-M3 支持 8192 token，中文强于 ada-002，本地部署无数据出站。Reranker 交叉编码器比纯向量 Recall@10 提升 26%。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="margin:0 0 6px;">🗄️ Qdrant</h4>
+    <div class="rationale" style="margin:0;">
+      <p><strong>为什么不是 Pinecone / Milvus?</strong> Qdrant Cloud 1GB 免费，Rust 高性能。LangChain <code>QdrantVectorStore</code> 封装即用。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="margin:0 0 6px;">✍️ 手写 ReAct 循环</h4>
+    <div class="rationale" style="margin:0;">
+      <p><strong>为什么不用 AgentExecutor?</strong> 面试官问"Prompt 怎么设计的？解析失败怎么处理的？"手写版能答上来。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="margin:0 0 6px;">🔄 Langfuse</h4>
+    <div class="rationale" style="margin:0;">
+      <p><strong>为什么不是 MLflow?</strong> Langfuse 专为 LLM 设计，原生 trace + span + score。Key 为空时自动降级为 no-op。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="margin:0 0 6px;">🧪 Ragas</h4>
+    <div class="rationale" style="margin:0;">
+      <p><strong>为什么自己标 100 个 QA?</strong> LLM 生成的评测数据有 bias。人工标注面试能拿出原文出处。</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ==================== 3. RAG PIPELINE ==================== -->
+<section id="rag">
+<h2>3️⃣ RAG Pipeline <span class="tag blue">core/pipeline.py</span></h2>
+
+<p>RAGPipeline 是整个系统的核心编排器：</p>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart TB
+    START["query(question, top_k=5)"] --> RET["span('hybrid-retrieve')&lt;br&gt;>HybridRetriever.search(top_k=20)"]
+    RET --> RERANK["span('rerank')&lt;br&gt;BGEReranker.rerank(top_k=5)"]
+    RERANK --> CTX["构造 Context&lt;br&gt;从 5 个 doc 拼接"]
+    CTX --> GEN["span('generate')&lt;br&gt;Generator.generate(question, context)"]
+    GEN --> REF["ReflectionModule.evaluate_rag()&lt;br&gt;低分重写"]
+    REF --> RET2["返回 dict(answer, sources, reflection)"]
+</div></div>
+
+<pre>
+<span class="cm"># pipeline.py — query() 核心流程</span>
+<span class="kw">def</span> <span class="fn">query</span>(self, question, top_k=5):
+    <span class="cm"># 1. 混合检索（粗排 20 个）</span>
+    <span class="kw">with</span> <span class="fn">span</span>(<span class="str">"hybrid-retrieve"</span>):
+        candidates = self.hybrid_retriever.<span class="fn">search</span>(question, top_k=<span class="num">20</span>)
+
+    <span class="cm"># 2. BGE Reranker 精排（top 5）</span>
+    docs = self.reranker.<span class="fn">rerank</span>(question, candidates, top_k=top_k)
+
+    <span class="cm"># 3. 生成答案</span>
+    answer = self.generator.<span class="fn">generate</span>(question, context)
+
+    <span class="cm"># 4. 反思评估 + 低分重写</span>
+    answer, evaluation = self.reflection.<span class="fn">evaluate_rag</span>(
+        question, answer, source_texts,
+        regenerate_func=<span class="kw">lambda</span>: self.generator.<span class="fn">generate</span>(question, context),
+    )
+
+    <span class="kw">return</span> {<span class="str">"answer"</span>: answer, <span class="str">"sources"</span>: sources,
+            <span class="str">"reflection"</span>: {<span class="str">"score"</span>: evaluation.score, ...}}</pre>
+</section>
+
+<!-- ==================== 4. REACT AGENT ==================== -->
+<section id="agent">
+<h2>4️⃣ ReAct Agent <span class="tag blue">core/react_agent.py</span></h2>
+
+<p>手写 ReAct 循环，不依赖 LangChain AgentExecutor：</p>
+
+<div class="mermaid-box"><div class="mermaid">
+sequenceDiagram
+    participant U as 用户
+    participant A as ReActAgent
+    participant L as DeepSeek
+    participant T as 工具
+
+    U->>A: run("100*2 等于多少？")
+    Note over A: 第 1 轮
+    A->>L: Prompt(ReAct指令 + 空历史 + 问题)
+    L->>A: Thought: 需要计算 Action: calc ActionInput: {"expression":"100*2"}
+    A->>A: parse_output() 正则匹配 Action
+    A->>T: _execute_tool("calc", {"expression":"100*2"})
+    T->>A: "200"
+    Note over A: 第 2 轮
+    A->>L: Prompt(ReAct指令 + 上轮历史 + 问题)
+    L->>A: Thought: 工具返回 200 FinalAnswer: 200
+    A->>U: AgentResult(answer="200", finished_reason="final_answer")
+</div></div>
+
+<pre>
+<span class="cm"># react_agent.py — run() 核心循环</span>
+<span class="kw">def</span> <span class="fn">run</span>(self, question):
+    <span class="kw">for</span> iteration <span class="kw">in</span> <span class="fn">range</span>(self.max_iterations):
+        prompt = self._build_prompt(question, history)
+        response_text = self.llm.<span class="fn">invoke</span>(prompt).content
+        parsed = self._parse_output(response_text)
+        <span class="kw">if</span> parsed <span class="kw">is</span> <span class="kw">None</span>:      <span class="cm"># 解析失败，让 LLM 修复</span>
+            history.append({<span class="str">"observation"</span>: <span class="str">"格式错误..."</span>})
+            <span class="kw">if</span> recent_failures &gt;= <span class="num">2</span>: <span class="kw">break</span>
+            <span class="kw">continue</span>
+        <span class="kw">if</span> parsed[<span class="str">"final_answer"</span>]:
+            <span class="kw">return</span> AgentResult(answer=parsed[<span class="str">"final_answer"</span>], ...)
+        <span class="kw">with</span> <span class="fn">span</span>(<span class="str">f"tool:{parsed['action']}"</span>):
+            observation = self._execute_tool(parsed[<span class="str">"action"</span>], ...)
+        steps.append(AgentStep(thought=..., observation=observation))
+    <span class="kw">return</span> AgentResult(answer=<span class="str">"抱歉，处理超时..."</span>, finished_reason=<span class="str">"max_iter"</span>)</pre>
+
+<div class="callout">
+<strong>🔑 finished_reason 枚举：</strong> <code>final_answer</code>（正常）/ <code>max_iter</code> / <code>parse_error</code> / <code>tool_error</code> / <code>llm_error</code>
+</div>
+</section>
+
+<!-- ==================== 5. MULTI-TURN ==================== -->
+<section id="multi-turn">
+<h2>5️⃣ 多轮对话 Agent <span class="tag blue">core/agent.py</span></h2>
+
+<p>MultiTurnAgent 把 ReActAgent + MemoryManager 串起来：</p>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart LR
+    U["用户: 年假几天"] --> M1["rewrite_query(无历史回原样)"]
+    M1 --> A1["ReActAgent.run() 回答 10 天"]
+    A1 --> S1["Redis: user:年假? / ai:10天"]
+    U2["用户: 那病假呢"] --> M2["rewrite_query(含历史)改写为病假制度"]
+    M2 --> A2["ReActAgent.run() 回答病假规则"]
+    A2 --> S2["Redis: user:病假? / ai:..."]
+</div></div>
+</section>
+
+<!-- ==================== 6. REFLECTION ==================== -->
+<section id="reflection">
+<h2>6️⃣ 反思评估器 <span class="tag blue">core/reflection.py</span></h2>
+
+<p>LLM-as-Judge：用独立的 Judge LLM 评估答案质量</p>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart TB
+    subgraph RAG
+        Q["问题"] --> GEN["DeepSeek temperature=0"]
+        CTX["Context"] --> GEN
+        GEN --> ANS["答案"]
+    end
+    subgraph REF["反思评估"]
+        ANS --> JUDGE["Judge LLM with_structured_output"]
+        CTX --> JUDGE
+        JUDGE --> SC{"score ge threshold"}
+        SC -- 是 --> OK["返回答案"]
+        SC -- 否 --> RETRY["重写 最多 3 次"]
+        RETRY --> GEN
+    end
+</div></div>
+
+<pre>
+<span class="kw">class</span> <span class="fn">AnswerEvaluation</span>(BaseModel):
+    score: <span class="kw">int</span> = Field(ge=<span class="num">1</span>, le=<span class="num">10</span>)
+    accuracy: <span class="kw">Literal</span>[<span class="str">"high"</span>, <span class="str">"medium"</span>, <span class="str">"low"</span>]
+    completeness: <span class="kw">Literal</span>[<span class="str">"high"</span>, <span class="str">"medium"</span>, <span class="str">"low"</span>]
+    has_citation: <span class="kw">bool</span>
+    is_hallucination: <span class="kw">bool</span>
+    issues: <span class="kw">list</span>[<span class="kw">str</span>]
+    is_acceptable: <span class="kw">bool</span></pre>
+</section>
+
+<!-- ==================== 7. HITL ==================== -->
+<section id="hitl">
+<h2>7️⃣ HITL 守卫 <span class="tag blue">core/hitl.py</span></h2>
+
+<div class="mermaid-box"><div class="mermaid">
+sequenceDiagram
+    participant A as ReActAgent
+    participant H as HITLGuard
+    participant API as FastAPI
+    participant U as 管理员
+    A->>H: check("send_email", {...})
+    H->>H: HIGH_RISK 命中
+    H->>A: PendingAction(requires_approval=True)
+    A->>A: 返回等待审批
+    U->>API: GET /agent/actions/pending
+    API->>H: list_pending()
+    H->>API: [PendingAction(send_email)]
+    U->>API: POST /agent/actions/{id}/approve
+    API->>H: approve(id)
+    H->>API: OK
+</div></div>
+</section>
+
+<!-- ==================== 8. MEMORY ==================== -->
+<section id="memory">
+<h2>8️⃣ 多轮对话记忆 <span class="tag blue">core/memory.py</span></h2>
+
+<div class="mermaid-box"><div class="mermaid">
+sequenceDiagram
+    participant U as 用户
+    participant M as MemoryManager
+    participant L as DeepSeek
+    U->>M: 第1轮: "年假几天"
+    M->>M: rewrite_query(年假几天, 空历史)
+    M-->>U: "年假几天"
+    U->>M: 第2轮: "那病假呢"
+    M->>M: rewrite_query(那病假呢, 历史含年假)
+    M->>L: 改写 Prompt(历史+当前问题)
+    L->>M: "公司病假制度是怎样的"
+    M-->>U: "公司病假制度是怎样的"
+</div></div>
+</section>
+
+<!-- ==================== 9. RETRIEVAL ==================== -->
+<section id="retrieval">
+<h2>9️⃣ 检索与重排</h2>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart LR
+    Q["query: 年假几天"] --> BM25["BM25 检索 jieba 分词"]
+    Q --> VEC["向量检索 BGE-M3 Cosine"]
+    BM25 --> RRF["RRF 融合 K=60"]
+    VEC --> RRF
+    RRF --> TOP20["top 20 候选"]
+    TOP20 --> RERANK["BGE Reranker Cross-encoder"]
+    RERANK --> TOP5["top 5 最终结果"]
+</div></div>
+</section>
+
+<!-- ==================== 10. API ==================== -->
+<section id="api">
+<h2>🔟 API 层 <span class="tag blue">app/api.py</span></h2>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart LR
+    subgraph 端点
+        HEALTH["GET /health"]
+        Q["POST /query"]
+        C["POST /chat"]
+        AC["POST /agent/chat"]
+        S["GET/DEL /sessions"]
+        ALIST["GET /agent/actions/pending"]
+        AAPP["POST /agent/actions/id/approve"]
+        AREJ["POST /agent/actions/id/reject"]
+    end
+    Q --> P["RAGPipeline"]
+    C --> P
+    AC --> A["MultiTurnAgent"]
+    S --> M["MemoryManager"]
+    ALIST --> H["HITLGuard"]
+    AAPP --> H
+    AREJ --> H
+</div></div>
+</section>
+
+<!-- ==================== 11. TESTING ==================== -->
+<section id="testing">
+<h2>1️⃣1️⃣ 测试策略 <span class="tag blue">35 tests</span></h2>
+
+<div class="mermaid-box"><div class="mermaid">
+flowchart LR
+    subgraph 单元测试
+        RAT["test_react_agent 7 个 Agent 路径"]
+        REFT["test_reflection 8 个 评估/重试/降级"]
+        HITLT["test_hitl 10 个 审批/清理"]
+    end
+    subgraph 集成测试
+        MEMT["test_memory 8 个 Redis 持久化"]
+    end
+</div></div>
+
+<pre>
+<span class="cm"># _mock_llm 标准模式</span>
+<span class="kw">def</span> <span class="fn">_mock_llm</span>(responses):
+    llm = MagicMock()
+    llm.invoke.side_effect = [MagicMock(content=r) <span class="kw">for</span> r <span class="kw">in</span> responses]
+    <span class="kw">return</span> llm
+
+<span class="kw">def</span> <span class="fn">test_tool_call_path</span>():
+    agent = ReActAgent(tools={<span class="str">"calc"</span>: <span class="kw">lambda</span> expr: <span class="str">"200"</span>}, ...)
+    agent.llm = _mock_llm([
+        <span class="str">"Thought: 需要计算\nAction: calc\nActionInput: {\"expression\": \"100*2\"}\n"</span>,
+        <span class="str">"Thought: 算完\nFinalAnswer: 200"</span>,
+    ])
+    result = agent.<span class="fn">run</span>(<span class="str">"100*2 = ?"</span>)
+    <span class="kw">assert</span> result.answer == <span class="str">"200"</span></pre>
+</section>
+
+<!-- ==================== 12. PITFALLS ==================== -->
+<section id="pitfalls">
+<h2>1️⃣2️⃣ 已知坑</h2>
+
+<div class="pitfall">
+<h4>🐛 @contextmanager 嵌套导致异常被改写</h4>
+<p><strong>现象：</strong>抛 ValueError("boom") → catch 到 RuntimeError: generator didn't stop after throw()</p>
+<p><strong>根因：</strong>嵌套 @contextmanager generator → CPython 抛 RuntimeError 替换原异常</p>
+<p><strong>修复：</strong>span() 从 @contextmanager 重构为 _SpanGuard 类（__enter__/__exit__ 协议）</p>
+<p><span class="tag green">已根治</span> <span class="tag blue">core/observability.py</span></p>
+</div>
+
+<div class="callout">
+<strong>调试技巧：</strong>异常类型被改写时打印 <code>e.__context__</code> 能看到原始异常。
+</div>
+</section>
+
+<div style="text-align:center;padding:32px 0 48px;color:var(--gray-500);font-size:.85rem;">
+📚 企业级 RAG + Agent 系统 · 35 tests · 3,941 行 Python
+</div>
+
+</div><!-- /.container -->
+
+<!-- Mermaid CDN with offline fallback -->
+<script src="mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  themeVariables: {
+    primaryColor: '#2563eb', primaryTextColor: '#fff', primaryBorderColor: '#1d4ed8',
+    lineColor: '#94a3b8', secondaryColor: '#eff6ff', tertiaryColor: '#f9fafb', fontSize: '14px',
+  },
+  flowchart: { useMaxWidth: true, htmlLabels: true },
+});
+</script>
+</body>
+</html>

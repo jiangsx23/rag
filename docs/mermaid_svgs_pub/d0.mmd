@@ -1,0 +1,61 @@
+flowchart TB
+    subgraph Client["客户端层"]
+        UI[Streamlit UI]
+        API[REST API 调用]
+    end
+
+    subgraph Gateway["API 层 (FastAPI)"]
+        HEALTH["/health"]
+        QUERY["/query"]
+        CHAT["/chat"]
+        AGENT["/agent/chat"]
+        HITL["/agent/actions/*"]
+        SESS["/sessions/*"]
+    end
+
+    subgraph Core["核心引擎"]
+        RAG["RAG Pipeline<br/>检索 → 精排 → 生成 → 反思"]
+        AGENT_ENGINE["ReAct Agent<br/>80 行核心循环"]
+        MEMORY["MemoryManager<br/>Redis + Query 改写"]
+        REFLECTION["ReflectionModule<br/>LLM-as-Judge 评估"]
+        HITL_GUARD["HITLGuard<br/>高风险操作拦截"]
+    end
+
+    subgraph Tools["工具层"]
+        T1["search_knowledge_base"]
+        T2["python_calculator"]
+        T3["get_current_time"]
+        T4["send_email"]
+        T5["web_search"]
+    end
+
+    subgraph Storage["存储层"]
+        QDRANT[(Qdrant<br/>向量数据库)]
+        REDIS[(Redis<br/>会话记忆)]
+    end
+
+    subgraph External["外部服务"]
+        DS[DeepSeek API]
+        LF[Langfuse<br/>可观测性]
+        BGE[BGE Embedding<br/>+ Reranker]
+    end
+
+    UI --> API
+    API --> Gateway
+    Gateway --> QUERY & CHAT & AGENT & HITL & SESS
+    QUERY --> RAG
+    CHAT --> MEMORY --> RAG
+    AGENT --> MEMORY --> AGENT_ENGINE
+    AGENT_ENGINE --> REFLECTION
+    AGENT_ENGINE --> HITL_GUARD
+    AGENT_ENGINE --> Tools
+    T4 -.-> HITL_GUARD
+    RAG --> REFLECTION
+    RAG --> QDRANT
+    MEMORY --> REDIS
+    REFLECTION --> DS
+    AGENT_ENGINE --> DS
+    RAG --> DS
+    RAG --> BGE
+    AGENT_ENGINE -.-> LF
+    RAG -.-> LF

@@ -1,0 +1,31 @@
+flowchart TB
+    subgraph A["数据接入"]
+        PARSER["DocumentParser<br/>Unstructured 解析 PDF/DOCX"]
+        CHUNKER["SmartChunker<br/>表格独立 + 文本递归切分"]
+        EMBED["BGEEmbedder<br/>BGE-M3 → 向量"]
+        INGEST["scripts/ingest.py<br/>写入 Qdrant"]
+
+    subgraph B["推理管道"]
+        API["FastAPI + Streamlit"]
+        MEM["MemoryManager<br/>Redis 记忆 + Query 改写"]
+        RET["HybridRetriever<br/>BM25 + 向量 + RRF"]
+        RERANK["BGEReranker<br/>精排 top 5"]
+        GEN["Generator<br/>DeepSeek-Chat"]
+        REFL["ReflectionModule<br/>LLM-as-Judge"]
+        AGENT["ReActAgent<br/>80 行手写循环"]
+        HITLG["HITLGuard<br/>人工审批"]
+        OBS["observability.py<br/>Langfuse 封装"]
+    end
+    subgraph C["交付物"]
+        DOC["docs/ 复盘文档"]
+        HTML["project_overview.html"]
+        EVAL["eval/ 评测体系"]
+        README["README.md"]
+    end
+    PARSER --> CHUNKER --> EMBED --> INGEST
+    API --> MEM --> RET --> RERANK --> GEN --> REFL
+    API --> AGENT --> HITLG
+    AGENT --> GEN
+    REFL -.-> GEN
+    OBS -.-> API & AGENT & GEN & REFL
+    end

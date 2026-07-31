@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant U as ""用户
+    participant A as ""ReActAgent
+    participant L as ""DeepSeek
+    participant T as ""工具
+
+    U->>A: run("100*2 等于多少？")
+    Note over A: 第 1 轮迭代
+    A->>L: Prompt(ReAct指令 + 历史空 + 问题)
+    L->>A: Thought: 需要计算<br/>Action: calc<br/>ActionInput: {"expression":"100*2"}
+    A->>A: parse_output() → 正则匹配 Action
+    A->>T: _execute_tool("calc", {"expression":"100*2"})
+    T->>A: "200"
+    Note over A: 第 2 轮迭代
+    A->>L: Prompt(ReAct指令 + 上轮历史 + 问题)
+    L->>A: Thought: 工具返回 200<br/>FinalAnswer: 200
+    A->>U: AgentResult(answer="200", finished_reason="final_answer")

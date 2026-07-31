@@ -1,0 +1,28 @@
+flowchart TB
+    START[开始] --> BUILD[构建 Prompt<br/>Question + History + Tools]
+    BUILD --> LLM[调 DeepSeek]
+    LLM --> PARSE[解析输出<br/>正则匹配]
+
+    PARSE --> FINAL{是 FinalAnswer?}
+    FINAL -- 是 --> RETURN[返回最终答案]
+
+    FINAL -- 否 --> ACTION{有 Action?}
+    ACTION -- 否 --> ERROR[解析失败<br/>给 LLM 反馈]
+    ERROR --> LLM
+
+    ACTION --> HITL{高风险?}
+    HITL -- 是 --> PENDING[返回待审批提示<br/>记录到 HITLGuard]
+    HITL -- 否 --> TOOL[执行工具]
+
+    TOOL --> OBS[记录 Observation]
+    OBS --> ITER{已达 max_iter?}
+    ITER -- 否 --> BUILD
+    ITER -- 是 --> FALLBACK[兜底: 超时提示]
+
+    subgraph finished_reason
+        R1["final_answer ✓"]
+        R2["max_iter"]
+        R3["tool_error"]
+        R4["parse_error"]
+        R5["llm_error"]
+    end

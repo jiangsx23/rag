@@ -1,0 +1,56 @@
+name: Dependency Update
+
+# 自动检测并更新依赖
+# 每周一自动跑，提 PR 更新过时依赖
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # 每周一 9:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  update-deps:
+    name: 📦 Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐍 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: 📦 更新 pip 依赖
+        run: |
+          pip install pur==7.0.0
+          pur -r requirements.txt > requirements_new.txt
+          if ! diff -q requirements.txt requirements_new.txt > /dev/null; then
+            echo "📦 依赖有更新"
+            mv requirements_new.txt requirements.txt
+            echo "changed=true" >> $GITHUB_ENV
+          else
+            echo "✅ 依赖无变化"
+            echo "changed=false" >> $GITHUB_ENV
+          fi
+
+      - name: 🚀 创建 PR
+        if: env.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(deps): update python dependencies"
+          title: "📦 依赖更新"
+          body: |
+            ## 自动依赖更新
+
+            本 PR 由 GitHub Actions 自动生成，定期更新 Python 依赖。
+
+            请 review 后合并。
+          branch: chore/update-deps
+          delete-branch: true

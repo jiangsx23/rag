@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant U as 用户
+    participant M as MemoryManager
+    participant L as DeepSeek(改写)
+
+    U->>M: 第1轮: "年假几天？"
+    M->>M: rewrite_query("年假几天？", [])
+    Note over M: 无历史 → 原样返回
+    M-->>U: "年假几天？"
+
+    U->>M: 第2轮: "那病假呢？"
+    M->>M: rewrite_query("那病假呢？",
+    Note over M: 历史: "年假几天？" / "10 天"
+    M->>L: 改写 Prompt(历史 + 当前问题)
+    L->>M: "公司病假制度是怎样的？"
+    M-->>U: "公司病假制度是怎样的？"
+    end

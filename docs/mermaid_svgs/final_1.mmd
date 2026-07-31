@@ -1,0 +1,13 @@
+flowchart TB
+    START["query(question, top_k=5)"] --> RET["span('hybrid-retrieve')<br/>HybridRetriever.search(question, top_k=20)"]
+    RET --> RERANK["span('rerank')<br/>BGEReranker.rerank(question, candidates, top_k=5)"]
+    RERANK --> CTX["构造 Context<br/>从 5 个 doc 拼接"]
+    CTX --> GEN["span('generate')<br/>Generator.generate(question, context)"]
+    GEN --> REF["ReflectionModule.evaluate_rag()<br/>评估 → 低分重写"]
+    REF --> RET2["返回 dict(answer, sources, reflection)"]
+
+    subgraph Col["流程图例"]
+        C1["span('...') 表示 Langfuse 观测埋点"]
+        C2["虚框表示可选路径"]
+
+    end

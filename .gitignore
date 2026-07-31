@@ -1,0 +1,47 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.Python
+.env
+.env.local
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+models/
+*.bin
+*.pt
+*.pth
+logs/*
+!logs/.gitkeep
+*.log
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage_report/
+eval/reports/*
+!eval/reports/.gitkeep
+
+# Node.js（有 package.json 做 mermaid 渲染）
+node_modules/
+
+# 打包产物
+dist/
+*.egg-info/
+
+# IDE 工作区
+*.code-workspace
+
+# 运行时产物
+.service_pids.json

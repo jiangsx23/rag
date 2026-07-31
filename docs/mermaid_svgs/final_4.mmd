@@ -1,0 +1,16 @@
+flowchart TB
+    subgraph RAG生成
+        Q["问题"] --> GEN["DeepSeek<br/>(temperature=0)"]
+        CTX["Context"] --> GEN
+        GEN --> ANS["答案"]
+
+    subgraph 反思评估
+        ANS --> JUDGE["Judge LLM<br/>ChatDeepSeek<br/>temperature=0"]
+        CTX --> JUDGE
+        JUDGE --> SCHEMA["with_structured_output<br/>⇓<br/>AnswerEvaluation"]
+        SCHEMA --> SC{"score ≥ threshold?"}
+        SC -- 是 --> OK["✅ 返回答案"]
+        SC -- 否 --> RETRY["重写<br/>(最多 3 次)"]
+        RETRY --> GEN
+    end
+    end

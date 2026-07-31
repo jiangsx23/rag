@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant A as ReActAgent._execute_tool()
+    participant H as HITLGuard
+    participant API as FastAPI
+    participant U as 管理员
+
+    A->>H: check("send_email", {...})
+    H->>H: HIGH_RISK_ACTIONS 命中
+    H->>A: PendingAction(requires_approval=True)
+    A->>A: 返回"等待审批"原因
+    Note over U: 管理员查看待审批列表
+    U->>API: GET /agent/actions/pending
+    API->>H: list_pending()
+    H->>API: [PendingAction(send_email)]
+    API->>U: {actions: [send_email]}
+    Note over U: 管理员审批
+    U->>API: POST /agent/actions/{id}/approve
+    API->>H: approve(id)
+    H->>API: OK
+    API->>U: {status: "approved"}

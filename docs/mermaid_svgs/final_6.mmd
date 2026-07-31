@@ -1,0 +1,26 @@
+flowchart LR
+    subgraph 端点
+        HEALTH["GET /health"]
+        Q["POST /query"]
+        C["POST /chat"]
+        AC["POST /agent/chat"]
+        S["GET/DELETE /sessions/*"]
+        HITL["GET/POST /agent/actions/*"]
+
+    subgraph 后端
+        P["RAGPipeline"]
+        A["MultiTurnAgent"]
+        M["MemoryManager"]
+        G["HITLGuard"]
+    end
+    subgraph SSE
+        SSE["SSE 流式<br/>events: rewrite / sources / token / done"]
+    end
+
+    Q --> P
+    C --> P
+    AC --> A
+    AC -.-> SSE
+    S --> M
+    HITL --> G
+    end

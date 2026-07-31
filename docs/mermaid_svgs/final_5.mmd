@@ -1,0 +1,8 @@
+flowchart LR
+    Q["query: 年假几天？"] --> BM25["BM25 检索<br/>jieba 分词 + 关键词匹配"]
+    Q --> VEC["向量检索<br/>BGE-M3 → Cosine 相似度"]
+    BM25 --> RRF["RRF 融合<br/>Reciprocal Rank Fusion"]
+    VEC --> RRF
+    RRF --> TOP20["top 20 候选"]
+    TOP20 --> RERANK["BGE Reranker<br/>Cross-encoder 精排"]
+    RERANK --> TOP5["top 5 最终结果"]

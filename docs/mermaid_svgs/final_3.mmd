@@ -1,0 +1,8 @@
+flowchart LR
+    U["用户: 年假几天？"] --> M1["MemoryManager.rewrite_query()<br/>(无历史 → 原样)"]
+    M1 --> A1["ReActAgent.run()<br/>→ 回答 10 天"]
+    A1 --> S1["保存到 Redis<br/>user: 年假几天? / ai: 10 天"]
+
+    U2["用户: 那病假呢？"] --> M2["MemoryManager.rewrite_query()<br/>(历史含年假 → 改写为'病假几天？')"]
+    M2 --> A2["ReActAgent.run()<br/>→ 回答病假规则"]
+    A2 --> S2["保存到 Redis<br/>user: 病假? / ai: ..."]

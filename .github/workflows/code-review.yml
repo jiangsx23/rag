@@ -1,0 +1,113 @@
+name: Code Review
+
+# Code Review Automation: 自动检查 PR 质量
+# 触发：PR 创建/更新时
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # ============================================================
+  # Job 1: 自动 review 检查
+  # ============================================================
+  review:
+    name: 🤖 Auto Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📊 计算 PR 变更规模
+        id: diff
+        run: |
+          # 计算变更行数
+          LINES=$(git diff --numstat origin/${{ github.base_ref }}...HEAD | awk '{sum += $1 + $2} END {print sum}')
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          echo "lines=${LINES}" >> $GITHUB_OUTPUT
+          echo "files=${FILES}" >> $GITHUB_OUTPUT
+          echo "📊 PR 规模: ${FILES} 个文件, ${LINES} 行变更"
+
+      - name: ⚠️ 检查 PR 规模
+        if: steps.diff.outputs.lines > 1000
+        run: |
+          echo "::warning::⚠️ PR 变更超过 1000 行，建议拆分成多个小 PR"
+
+      - name: 🏷️ 自动给 PR 加标签
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📝 PR 描述检查
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+
+            // 检查 PR 描述是否包含必要信息
+            const checks = [
+              { name: '📋 变更说明', regex: /##\s*变更说明|##\s*What|##\s*Changes/i },
+              { name: '🧪 测试方法', regex: /##\s*测试|##\s*Test|##\s*How to test/i },
+              { name: '📸 截图/录屏', regex: /##\s*截图|##\s*Screenshot|screencast|recording/i },
+            ];
+
+            const missing = checks.filter(c => !c.regex.test(body));
+
+            if (missing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: `⚠️ **PR 描述不完整**，缺少以下部分：\n\n${missing.map(c => `- ${c.name}`).join('\n')}\n\n请补充后重新 review。`
+              });
+            }
+
+  # ============================================================
+  # Job 2: 变更文件大小分析
+  # ============================================================
+  size-label:
+    name: 🏷️ Size Label
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📊 检测 PR 规模
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { data: comparison } = await github.rest.repos.compareCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: pr.base.sha,
+              head: pr.head.sha,
+            });
+
+            const lines = (comparison.files || []).reduce(
+              (sum, f) => sum + (f.additions || 0) + (f.deletions || 0), 0
+            );
+
+            let label = 'size/XS';  // < 10
+            if (lines >= 10 && lines < 50) label = 'size/S';
+            else if (lines >= 50 && lines < 200) label = 'size/M';
+            else if (lines >= 200 && lines < 500) label = 'size/L';
+            else if (lines >= 500) label = 'size/XL';
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: [label],
+            });

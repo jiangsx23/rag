@@ -1,0 +1,17 @@
+flowchart LR
+    Q[用户问题] --> RW[Query 改写<br/>Redis 多轮记忆]
+    RW --> HR[混合检索<br/>BM25 + 向量检索]
+    HR --> RR[RRF 融合<br/>20 候选项]
+    RR --> RN[BGE Reranker<br/>精排 top 5]
+    RN --> CTX[构造 Context]
+    CTX --> GEN[DeepSeek 生成答案]
+    GEN --> REF[LLM-as-Judge<br/>反思评估]
+    REF --> CHK{可接受?}
+
+    CHK -- 是 --> RET[返回答案]
+    CHK -- 否, 有重试 --> GEN
+
+    subgraph Stats["性能指标"]
+        S1["Recall@10: 0.72 → 0.91"]
+        S2["幻觉率: 28% → 6%"]
+    end

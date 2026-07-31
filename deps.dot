@@ -1,0 +1,127 @@
+digraph G {
+  rankdir=LR;
+  graph [fontname=Helvetica fontsize=12 bgcolor=white];
+  node [style=filled fillcolor="#fff7e0" fontname=Helvetica fontsize=10];
+
+  subgraph cluster_eval {
+    label="eval";
+    style=filled;
+    fillcolor="#f5f5f5";
+    "eval.generate_qa" [label="generate_qa" fillcolor="#e8e8e8"];
+    "eval.generate_qa_from_docs" [label="generate_qa_from_docs" fillcolor="#e8e8e8"];
+    "eval.meta_evaluation" [label="meta_evaluation" fillcolor="#e8e8e8"];
+    "eval.run_eval" [label="run_eval" fillcolor="#e8e8e8"];
+  }
+
+  subgraph cluster_scripts {
+    label="scripts";
+    style=filled;
+    fillcolor="#f5f5f5";
+    "scripts.ingest" [label="ingest" fillcolor="#e8e8e8"];
+  }
+
+  subgraph cluster_tests {
+    label="tests";
+    style=filled;
+    fillcolor="#f5f5f5";
+    "tests.test_chunker" [label="test_chunker" fillcolor="#e8e8e8"];
+    "tests.test_generator" [label="test_generator" fillcolor="#e8e8e8"];
+    "tests.test_generator_stream" [label="test_generator_stream" fillcolor="#e8e8e8"];
+    "tests.test_health" [label="test_health" fillcolor="#e8e8e8"];
+    "tests.test_hitl" [label="test_hitl" fillcolor="#e8e8e8"];
+    "tests.test_memory" [label="test_memory" fillcolor="#e8e8e8"];
+    "tests.test_parser" [label="test_parser" fillcolor="#e8e8e8"];
+    "tests.test_pipeline" [label="test_pipeline" fillcolor="#e8e8e8"];
+    "tests.test_react_agent" [label="test_react_agent" fillcolor="#e8e8e8"];
+    "tests.test_reflection" [label="test_reflection" fillcolor="#e8e8e8"];
+    "tests.test_retriever" [label="test_retriever" fillcolor="#e8e8e8"];
+  }
+
+  subgraph cluster_app { label="app"; style=filled; fillcolor="#dbeafe";
+    "app.api" [label="api" fillcolor="#bfdbfe"];
+    "app.config" [label="config" fillcolor="#bfdbfe"];
+    "app.logger" [label="logger" fillcolor="#bfdbfe"];
+  }
+
+  subgraph cluster_core { label="core"; style=filled; fillcolor="#f3e8ff";
+    "core.agent" [label="agent" fillcolor="#e9d5ff"];
+    "core.chunker" [label="chunker" fillcolor="#e9d5ff"];
+    "core.embedder" [label="embedder" fillcolor="#e9d5ff"];
+    "core.generator" [label="generator" fillcolor="#e9d5ff"];
+    "core.hitl" [label="hitl" fillcolor="#e9d5ff"];
+    "core.memory" [label="memory" fillcolor="#e9d5ff"];
+    "core.observability" [label="observability" fillcolor="#e9d5ff"];
+    "core.parser" [label="parser" fillcolor="#e9d5ff"];
+    "core.pipeline" [label="pipeline" fillcolor="#e9d5ff"];
+    "core.react_agent" [label="react_agent" fillcolor="#e9d5ff"];
+    "core.reflection" [label="reflection" fillcolor="#e9d5ff"];
+    "core.reranker" [label="reranker" fillcolor="#e9d5ff"];
+    "core.retriever" [label="retriever" fillcolor="#e9d5ff"];
+    "core.tools" [label="tools" fillcolor="#e9d5ff"];
+  }
+
+  "app.api" -> "app.config";
+  "app.api" -> "app.logger";
+  "app.api" -> "core.agent";
+  "app.api" -> "core.hitl";
+  "app.api" -> "core.memory";
+  "app.api" -> "core.observability";
+  "app.api" -> "core.pipeline";
+  "core.agent" -> "app.logger";
+  "core.agent" -> "core.memory";
+  "core.agent" -> "core.observability";
+  "core.agent" -> "core.react_agent";
+  "core.agent" -> "core.reflection";
+  "core.agent" -> "core.tools";
+  "core.generator" -> "app.config";
+  "core.hitl" -> "app.logger";
+  "core.memory" -> "app.config";
+  "core.memory" -> "app.logger";
+  "core.observability" -> "app.config";
+  "core.observability" -> "app.logger";
+  "core.pipeline" -> "app.config";
+  "core.pipeline" -> "app.logger";
+  "core.pipeline" -> "core.embedder";
+  "core.pipeline" -> "core.generator";
+  "core.pipeline" -> "core.memory";
+  "core.pipeline" -> "core.observability";
+  "core.pipeline" -> "core.reflection";
+  "core.pipeline" -> "core.reranker";
+  "core.pipeline" -> "core.retriever";
+  "core.react_agent" -> "app.config";
+  "core.react_agent" -> "core.hitl";
+  "core.react_agent" -> "core.observability";
+  "core.reflection" -> "app.config";
+  "core.reflection" -> "app.logger";
+  "core.reflection" -> "core.observability";
+  "core.reranker" -> "app.logger";
+  "core.retriever" -> "app.logger";
+  "core.tools" -> "app.api";
+  "core.tools" -> "app.logger";
+  "eval.generate_qa" -> "app.config";
+  "eval.generate_qa" -> "app.logger";
+  "eval.generate_qa_from_docs" -> "app.config";
+  "eval.generate_qa_from_docs" -> "app.logger";
+  "eval.meta_evaluation" -> "app.logger";
+  "eval.meta_evaluation" -> "core.reflection";
+  "eval.run_eval" -> "app.logger";
+  "eval.run_eval" -> "core.pipeline";
+  "scripts.ingest" -> "app.config";
+  "scripts.ingest" -> "app.logger";
+  "scripts.ingest" -> "core.chunker";
+  "scripts.ingest" -> "core.embedder";
+  "scripts.ingest" -> "core.parser";
+  "tests.test_chunker" -> "core.chunker";
+  "tests.test_chunker" -> "core.parser";
+  "tests.test_generator" -> "core.generator";
+  "tests.test_generator_stream" -> "core.generator";
+  "tests.test_health" -> "app.api";
+  "tests.test_hitl" -> "core.hitl";
+  "tests.test_memory" -> "core.memory";
+  "tests.test_parser" -> "core.parser";
+  "tests.test_pipeline" -> "core.pipeline";
+  "tests.test_pipeline" -> "core.reflection";
+  "tests.test_react_agent" -> "core.react_agent";
+  "tests.test_reflection" -> "core.reflection";
+  "tests.test_retriever" -> "core.retriever";
+}

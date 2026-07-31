@@ -1,0 +1,166 @@
+# ============================================
+# docker-compose.yml - 一键启动整个系统
+# ============================================
+
+version: "3.9"
+
+services:
+  # ============================================
+  # 1. FastAPI 后端服务
+  # ============================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # 日志持久化
+      - ./logs:/app/logs
+      # 数据持久化
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    networks:
+      - rag-network
+    depends_on:
+      - qdrant
+
+  # ============================================
+  # 2. Streamlit 前端
+  # ============================================
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-streamlit
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    command: ["streamlit", "run", "app/ui.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rag-network
+    depends_on:
+      - api
+
+  # ============================================
+  # 3. Qdrant 向量数据库（本地版）
+  # ============================================
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: rag-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"      # REST API
+      - "6334:6334"      # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    networks:
+      - rag-network
+
+  # ============================================================
+  # 4. Redis（多轮记忆 - 可选）
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - rag-network
+
+  # ============================================================
+  # 5. Prometheus（监控 - 可选）
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: rag-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - rag-network
+    profiles: ["monitoring"]  # 默认不启动，需要时 --profile monitoring
+
+  # ============================================================
+  # 5. Grafana（可视化 - 可选）
+  # ============================================================
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: rag-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - rag-network
+    profiles: ["monitoring"]
+
+# ============================================
+# 持久化数据卷
+# ============================================
+volumes:
+  qdrant_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ============================================
+# 自定义网络
+# ============================================
+networks:
+  rag-network:
+    driver: bridge
+    name: rag-network
