@@ -1,9 +1,11 @@
 """BGE Reranker 精排"""
+
 import os
+
 import torch
-import numpy as np
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from langchain_core.documents import Document
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
 from app.logger import logger
 
 

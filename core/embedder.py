@@ -1,8 +1,10 @@
 """BGE-M3 Embedding 封装"""
+
 import os
+
 import torch
-from loguru import logger
 from langchain_core.embeddings import Embeddings
+from loguru import logger
 
 # 强制 HuggingFace 离线模式（huggingface.co 在国内网络不可达时避免超时）
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -46,6 +48,7 @@ class BGEEmbedder:
 
 class BGELangChainEmbeddings(Embeddings):
     """适配 LangChain 的接口"""
+
     def __init__(self, embedder: BGEEmbedder):
         self.embedder = embedder
 

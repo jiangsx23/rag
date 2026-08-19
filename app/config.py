@@ -1,6 +1,8 @@
 """配置加载 - 用 pydantic-settings 强类型校验"""
-from pydantic_settings import BaseSettings
+
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):

@@ -1,5 +1,7 @@
 """测试 core/agent.py"""
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock
+
 from core.agent import MultiTurnAgent, get_agent
 
 
@@ -44,7 +46,9 @@ class TestMultiTurnAgent:
 
         # Verify the flow
         agent.memory.get_or_create_session.assert_called_once_with("uid", "sid")
-        agent.memory.rewrite_query_with_context.assert_called_once_with("test question", mock_session)
+        agent.memory.rewrite_query_with_context.assert_called_once_with(
+            "test question", mock_session
+        )
         agent.react_agent.run.assert_called_once_with("rewritten query")
         agent.memory.save.assert_called_once()
 

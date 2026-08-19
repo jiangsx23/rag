@@ -13,21 +13,20 @@
 - 我们要按 session_id/user_id 把整个请求串成一个 trace
 - 装饰器不会自动串父子关系，得手工 langfuse_context.update_current_trace
 """
+
 from __future__ import annotations
-import time
+
 import functools
-from typing import Optional, Any, Callable
+import time
+from typing import Any, Optional
 
 from app.config import settings
 from app.logger import logger
 
-
 # ============================================
 # 单例 + 降级判断
 # ============================================
-_LANGFUSE_ENABLED = bool(
-    settings.LANGFUSE_PUBLIC_KEY and settings.LANGFUSE_SECRET_KEY
-)
+_LANGFUSE_ENABLED = bool(settings.LANGFUSE_PUBLIC_KEY and settings.LANGFUSE_SECRET_KEY)
 _langfuse_client = None
 
 
@@ -39,6 +38,7 @@ def get_langfuse():
     if _langfuse_client is None:
         try:
             from langfuse import Langfuse
+
             _langfuse_client = Langfuse(
                 public_key=settings.LANGFUSE_PUBLIC_KEY,
                 secret_key=settings.LANGFUSE_SECRET_KEY,
@@ -68,6 +68,7 @@ def observe(name: Optional[str] = None, **kwargs):
     """
     try:
         from langfuse.decorators import observe as _observe
+
         return _observe(name=name, **kwargs)
     except Exception:
         # Langfuse 没装或 key 没配 → 直接透传
@@ -75,7 +76,9 @@ def observe(name: Optional[str] = None, **kwargs):
             @functools.wraps(func)
             def wrapper(*args, **kw):
                 return func(*args, **kw)
+
             return wrapper
+
         return passthrough
 
 
@@ -112,6 +115,7 @@ class _SpanGuard:
             return self
         try:
             from langfuse.decorators import langfuse_context
+
             self._langfuse_ctx = langfuse_context
             self._langfuse_ctx.update_current_observation(
                 name=self.name,
@@ -162,7 +166,11 @@ class _NoopSpanGuard:
         pass
 
 
-def span(name: str, input_data: Any = None, metadata: dict | None = None) -> _SpanGuard | _NoopSpanGuard:
+def span(
+    name: str,
+    input_data: Any = None,
+    metadata: dict | None = None,
+) -> _SpanGuard | _NoopSpanGuard:
     """手工开一个 span，离开 with 块自动 end。
 
     基于 _SpanGuard（__enter__/__exit__ 协议），不涉及任何 generator，
@@ -191,6 +199,7 @@ def update_trace(
         return
     try:
         from langfuse.decorators import langfuse_context
+
         kwargs = {}
         if user_id is not None:
             kwargs["user_id"] = user_id
@@ -222,6 +231,7 @@ def update_current(
         return
     try:
         from langfuse.decorators import langfuse_context
+
         kwargs = {}
         if input is not None:
             kwargs["input"] = input
@@ -245,9 +255,8 @@ def score_current(name: str, value: float, comment: Optional[str] = None) -> Non
         return
     try:
         from langfuse.decorators import langfuse_context
-        langfuse_context.score_current_trace(
-            name=name, value=value, comment=comment
-        )
+
+        langfuse_context.score_current_trace(name=name, value=value, comment=comment)
     except Exception as e:
         logger.debug(f"langfuse score error (ignored): {e}")
 
@@ -258,6 +267,7 @@ def flush() -> None:
         return
     try:
         from langfuse.decorators import langfuse_context
+
         langfuse_context.flush()
     except Exception as e:
         logger.debug(f"langfuse flush error: {e}")

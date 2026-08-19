@@ -6,17 +6,24 @@
 - Qdrant 向量检索部分用 MagicMock 替代
 - 关键测试点：RRF 分数计算、去重、权重调节、空数据
 """
+
 from unittest.mock import MagicMock
+
 from langchain_core.documents import Document
 
 from core.retriever import HybridRetriever
-
 
 # ============================================
 # 辅助函数
 # ============================================
 
-def _make_doc(content: str, source: str = "doc.pdf", page: int = 1, chunk_id: str = None) -> Document:
+
+def _make_doc(
+    content: str,
+    source: str = "doc.pdf",
+    page: int = 1,
+    chunk_id: str = None,
+) -> Document:
     """快速构造 Document"""
     meta = {"source": source, "page": page}
     if chunk_id:
@@ -34,6 +41,7 @@ def _make_vector_store(mock_docs: list[tuple[Document, float]]):
 # ============================================
 # 1. 基本初始化
 # ============================================
+
 
 def test_init_without_docs():
     """没有文档时，bm25 应为 None，search 回退到纯向量"""
@@ -57,6 +65,7 @@ def test_init_with_docs_builds_bm25():
 # 2. 纯向量回退
 # ============================================
 
+
 def test_fallback_to_vector_only():
     """没有 BM25 索引时，返回向量检索结果"""
     vector_docs = [_make_doc("答案A"), _make_doc("答案B")]
@@ -72,6 +81,7 @@ def test_fallback_to_vector_only():
 # ============================================
 # 3. RRF 融合排序
 # ============================================
+
 
 def test_rrf_fusion_interleaves_results():
     """BM25 和向量结果应通过 RRF 融合排序"""
@@ -110,6 +120,7 @@ def test_rrf_vector_weight_preference():
 # 4. 去重逻辑
 # ============================================
 
+
 def test_dedup_by_chunk_id():
     """相同 chunk_id 的文档应去重"""
     doc = _make_doc("重复内容", chunk_id="dup-1")
@@ -142,6 +153,7 @@ def test_dedup_by_source_page():
 # 5. _doc_key 生成
 # ============================================
 
+
 def test_doc_key_with_chunk_id():
     """有 chunk_id 时用 chunk_id 做 key"""
     doc = _make_doc("内容", chunk_id="my-chunk")
@@ -163,6 +175,7 @@ def test_doc_key_fallback():
 # ============================================
 # 6. 边界条件
 # ============================================
+
 
 def test_search_empty_query():
     """空查询字符串不应崩溃"""

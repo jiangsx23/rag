@@ -16,17 +16,19 @@ ReAct 循环：
     - "tool_error"    工具抛异常（但仍尝试继续）
     - "llm_error"     LLM 不可用
 """
-import re
-import json
-import time
+
 import asyncio
+import json
+import re
+import time
 from dataclasses import dataclass, field
 from typing import Callable
-from core.llm import get_default_llm
+
 from loguru import logger
 
 from app.config import settings
-from core.observability import observe, span, update_current, update_trace
+from core.llm import get_default_llm
+from core.observability import observe, span, update_current
 
 
 # ============================================
@@ -35,6 +37,7 @@ from core.observability import observe, span, update_current, update_trace
 @dataclass
 class AgentStep:
     """Agent 的一步：思考 + 行动 + 结果"""
+
     thought: str
     action: str
     action_input: dict
@@ -45,6 +48,7 @@ class AgentStep:
 @dataclass
 class AgentResult:
     """Agent 完整运行结果"""
+
     answer: str
     steps: list[AgentStep] = field(default_factory=list)
     total_iterations: int = 0
@@ -96,6 +100,7 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
         self._hitl_guard = None
         if hitl_guard:
             from core.hitl import get_hitl_guard
+
             self._hitl_guard = get_hitl_guard()
 
     # ---------- 主循环 ----------
@@ -129,20 +134,23 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
                 # 3. 解析
                 parsed = self._parse_output(response_text)
                 if parsed is None:
-                    history.append({
-                        "thought": "解析失败",
-                        "action": "",
-                        "action_input": {},
-                        "observation": (
-                            f"你的输出无法解析，必须严格按以下格式之一输出：\n"
-                            f"1) Thought/Action/ActionInput（要再调工具）\n"
-                            f"2) FinalAnswer: ...（要给出最终答案）\n\n"
-                            f"你刚才的原始输出：{response_text[:300]}"
-                        ),
-                    })
+                    history.append(
+                        {
+                            "thought": "解析失败",
+                            "action": "",
+                            "action_input": {},
+                            "observation": (
+                                f"你的输出无法解析，必须严格按以下格式之一输出：\n"
+                                f"1) Thought/Action/ActionInput（要再调工具）\n"
+                                f"2) FinalAnswer: ...（要给出最终答案）\n\n"
+                                f"你刚才的原始输出：{response_text[:300]}"
+                            ),
+                        }
+                    )
                     finished_reason = "parse_error"
                     recent_failures = sum(
-                        1 for h in history[-2:]
+                        1
+                        for h in history[-2:]
                         if h.get("action") == "" and "解析失败" in h.get("thought", "")
                     )
                     if recent_failures >= max_parse_failures:
@@ -179,14 +187,10 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
                     # 不涉及任何 generator，因此不存在嵌套 generator 异常改写的风险。
                     # 但工具异常仍在 span 内部捕获，保持语义清晰。
                     try:
-                        observation = self._execute_tool(
-                            parsed["action"], parsed["action_input"]
-                        )
+                        observation = self._execute_tool(parsed["action"], parsed["action_input"])
                     except Exception as e:
                         logger.warning(f"Tool '{parsed['action']}' failed: {e}")
-                        observation = (
-                            f"工具执行失败：{type(e).__name__}: {str(e)}"
-                        )
+                        observation = f"工具执行失败：{type(e).__name__}: {str(e)}"
                         finished_reason = "tool_error"
             except Exception:
                 # span 本身（langfuse SDK）异常时静默吞掉，
@@ -204,12 +208,14 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
                 latency_ms=latency_ms,
             )
             steps.append(step)
-            history.append({
-                "thought": parsed["thought"],
-                "action": parsed["action"],
-                "action_input": parsed["action_input"],
-                "observation": observation,
-            })
+            history.append(
+                {
+                    "thought": parsed["thought"],
+                    "action": parsed["action"],
+                    "action_input": parsed["action_input"],
+                    "observation": observation,
+                }
+            )
 
         # 兜底
         update_current(
@@ -226,13 +232,15 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
     # ---------- Prompt 构造 ----------
     def _build_prompt(self, question: str, history: list[dict]) -> str:
         if history:
-            history_text = "\n\n".join([
-                f"Thought: {h['thought']}\n"
-                f"Action: {h['action']}\n"
-                f"ActionInput: {json.dumps(h['action_input'], ensure_ascii=False)}\n"
-                f"Observation: {h['observation']}"
-                for h in history
-            ])
+            history_text = "\n\n".join(
+                [
+                    f"Thought: {h['thought']}\n"
+                    f"Action: {h['action']}\n"
+                    f"ActionInput: {json.dumps(h['action_input'], ensure_ascii=False)}\n"
+                    f"Observation: {h['observation']}"
+                    for h in history
+                ]
+            )
         else:
             history_text = "（无）"
 
@@ -261,7 +269,8 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
         input_match = re.search(r"ActionInput:\s*(\{.*?\})\s*(?:\n|$)", text, re.DOTALL)
         thought_match = re.search(
             r"Thought:\s*(.+?)(?=\n\s*Action:|\n\s*FinalAnswer:|$)",
-            text, re.DOTALL,
+            text,
+            re.DOTALL,
         )
 
         if not (action_match and input_match):
@@ -272,9 +281,7 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
         except json.JSONDecodeError:
             # 尝试修补：单引号 → 双引号
             try:
-                action_input = json.loads(
-                    input_match.group(1).replace("'", '"')
-                )
+                action_input = json.loads(input_match.group(1).replace("'", '"'))
             except Exception:
                 return None
 
@@ -317,11 +324,7 @@ FinalAnswer: 你的最终回答（直接给用户看的自然语言）
 
         # 异步函数：用 asyncio 跑
         if asyncio.iscoroutinefunction(tool_fn):
-            return asyncio.run(
-                asyncio.wait_for(
-                    tool_fn(**action_input), timeout=self.tool_timeout
-                )
-            )
+            return asyncio.run(asyncio.wait_for(tool_fn(**action_input), timeout=self.tool_timeout))
 
         # 同步函数：直接调，原始异常类型/消息原样透传
         return tool_fn(**action_input)

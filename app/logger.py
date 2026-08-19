@@ -1,12 +1,16 @@
 """统一日志格式"""
-import sys
+
 import io
+import sys
+
 from loguru import logger
 
 # Windows 控制台默认 GBK，emoji/中文会爆 → 强制 UTF-8 包一层
-_utf8_stdout = io.TextIOWrapper(
-    sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
-) if hasattr(sys.stdout, "buffer") else sys.stdout
+_utf8_stdout = (
+    io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+    if hasattr(sys.stdout, "buffer")
+    else sys.stdout
+)
 
 # 移除默认 handler
 logger.remove()
@@ -15,9 +19,9 @@ logger.remove()
 logger.add(
     _utf8_stdout,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-           "<level>{level:<8}</level> | "
-           "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-           "<level>{message}</level>",
+    "<level>{level:<8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+    "<level>{message}</level>",
     level="INFO",
 )
 

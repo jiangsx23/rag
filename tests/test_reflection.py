@@ -4,18 +4,25 @@
 - evaluate() 测试：mock 底层的 evaluator.invoke，验证数据透传和异常降级
 - evaluate_rag() 测试：mock evaluate() 方法，验证重试循环逻辑
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
 
-from core.reflection import ReflectionModule, AnswerEvaluation
+import pytest
+
+from core.reflection import AnswerEvaluation, ReflectionModule
 
 
 def _eval(**overrides) -> AnswerEvaluation:
     """快速构造 AnswerEvaluation（提供默认值）"""
     defaults = dict(
-        score=9, accuracy="high", completeness="high",
-        has_citation=True, is_hallucination=False,
-        issues=[], suggestion="", is_acceptable=True,
+        score=9,
+        accuracy="high",
+        completeness="high",
+        has_citation=True,
+        is_hallucination=False,
+        issues=[],
+        suggestion="",
+        is_acceptable=True,
     )
     defaults.update(overrides)
     return AnswerEvaluation(**defaults)
@@ -47,7 +54,9 @@ def test_evaluate_returns_evaluation(module):
 def test_evaluate_detects_hallucination(module):
     """幻觉检测透传"""
     module.evaluator.invoke.return_value = _eval(
-        score=2, is_hallucination=True, is_acceptable=False,
+        score=2,
+        is_hallucination=True,
+        is_acceptable=False,
     )
 
     result = module.evaluate("Q", "A", ["S"])
@@ -74,7 +83,10 @@ def test_rag_no_retry_if_acceptable(module):
     """首次评估通过 → 不重试"""
     with patch.object(module, "evaluate", return_value=_eval()) as mock_ev:
         answer, evaluation = module.evaluate_rag(
-            "Q", "A", ["S"], regenerate_func=lambda: "B",
+            "Q",
+            "A",
+            ["S"],
+            regenerate_func=lambda: "B",
         )
 
     assert mock_ev.call_count == 1
@@ -84,17 +96,22 @@ def test_rag_no_retry_if_acceptable(module):
 
 def test_rag_retry_on_low_score(module):
     """首次低分 → 重写 → 第二次通过"""
-    calls = iter([
-        _eval(score=5, is_acceptable=False),
-        _eval(score=9, is_acceptable=True),
-    ])
+    calls = iter(
+        [
+            _eval(score=5, is_acceptable=False),
+            _eval(score=9, is_acceptable=True),
+        ]
+    )
 
     def regenerate() -> str:
         return "改进后的答案"
 
     with patch.object(module, "evaluate", side_effect=calls):
         final_answer, evaluation = module.evaluate_rag(
-            "Q", "初始答案", ["S"], regenerate_func=regenerate,
+            "Q",
+            "初始答案",
+            ["S"],
+            regenerate_func=regenerate,
         )
 
     assert evaluation.is_acceptable is True
@@ -105,11 +122,13 @@ def test_rag_retry_on_low_score(module):
 def test_rag_retry_exhausted(module):
     """重试次数耗尽仍低分 → 返回最后结果"""
     module.max_retries = 2
-    calls = iter([
-        _eval(score=4, is_acceptable=False),
-        _eval(score=5, is_acceptable=False),
-        _eval(score=3, is_acceptable=False),
-    ])
+    calls = iter(
+        [
+            _eval(score=4, is_acceptable=False),
+            _eval(score=5, is_acceptable=False),
+            _eval(score=3, is_acceptable=False),
+        ]
+    )
     regenerate_calls = []
 
     def regenerate() -> str:
@@ -118,7 +137,10 @@ def test_rag_retry_exhausted(module):
 
     with patch.object(module, "evaluate", side_effect=calls):
         final_answer, evaluation = module.evaluate_rag(
-            "Q", "初始", ["S"], regenerate_func=regenerate,
+            "Q",
+            "初始",
+            ["S"],
+            regenerate_func=regenerate,
         )
 
     assert len(regenerate_calls) == 2
@@ -129,10 +151,15 @@ def test_rag_retry_exhausted(module):
 def test_rag_no_regenerate_func(module):
     """没有传 regenerate_func → 不做重试"""
     with patch.object(
-        module, "evaluate", return_value=_eval(score=5, is_acceptable=False),
+        module,
+        "evaluate",
+        return_value=_eval(score=5, is_acceptable=False),
     ) as mock_ev:
         answer, evaluation = module.evaluate_rag(
-            "Q", "A", ["S"], regenerate_func=None,
+            "Q",
+            "A",
+            ["S"],
+            regenerate_func=None,
         )
 
     assert mock_ev.call_count == 1

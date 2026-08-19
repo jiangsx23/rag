@@ -16,16 +16,18 @@
         return f"需要审批 (ID: {action.id})"
     # else: 直接执行
 """
-from enum import Enum
+
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-import uuid
+from enum import Enum
 
 from app.logger import logger
 
 
 class ActionRisk(Enum):
     """风险等级"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -34,14 +36,13 @@ class ActionRisk(Enum):
 @dataclass
 class PendingAction:
     """一条待审批的操作"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     action_name: str = ""
     action_input: dict = field(default_factory=dict)
     risk_level: ActionRisk = ActionRisk.LOW
     requires_approval: bool = False
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     status: str = "pending"  # pending | approved | rejected
 
 
@@ -60,11 +61,7 @@ class HITLGuard:
         Returns:
             PendingAction: requires_approval=True 表示需要审批
         """
-        risk = (
-            ActionRisk.HIGH
-            if action_name in self.HIGH_RISK_ACTIONS
-            else ActionRisk.LOW
-        )
+        risk = ActionRisk.HIGH if action_name in self.HIGH_RISK_ACTIONS else ActionRisk.LOW
         action = PendingAction(
             action_name=action_name,
             action_input=action_input,
@@ -73,9 +70,7 @@ class HITLGuard:
         )
         if action.requires_approval:
             self._pending_actions[action.id] = action
-            logger.warning(
-                f"HITL: 高风险操作「{action_name}」等待审批 (ID: {action.id})"
-            )
+            logger.warning(f"HITL: 高风险操作「{action_name}」等待审批 (ID: {action.id})")
         return action
 
     def approve(self, action_id: str) -> bool:

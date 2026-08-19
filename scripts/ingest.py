@@ -1,19 +1,20 @@
 """完整入库脚本"""
+
 import sys
 from pathlib import Path
 
 # 让脚本能找到 app/ 和 core/
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
-from langchain_qdrant import QdrantVectorStore
 
 from app.config import settings
 from app.logger import logger
-from core.parser import DocumentParser
 from core.chunker import SmartChunker
 from core.embedder import BGEEmbedder, BGELangChainEmbeddings
+from core.parser import DocumentParser
 
 
 def main(data_dir: str = "data/raw"):
@@ -49,7 +50,15 @@ def main(data_dir: str = "data/raw"):
     # 处理所有文档
     all_chunks = []
     for file_path in Path(data_dir).glob("**/*"):
-        if file_path.suffix.lower() not in {".pdf", ".docx", ".doc", ".pptx", ".txt", ".md", ".html"}:
+        if file_path.suffix.lower() not in {
+            ".pdf",
+            ".docx",
+            ".doc",
+            ".pptx",
+            ".txt",
+            ".md",
+            ".html",
+        }:
             continue
         if file_path.name.startswith("."):  # 跳过 .gitkeep 等
             continue
@@ -69,7 +78,9 @@ def main(data_dir: str = "data/raw"):
 
     # 验证
     info = client.get_collection(collection_name)
-    logger.info(f"📊 Collection vectors: {info.points_count}, dim: {embedder.dim}, distance: COSINE")
+    logger.info(
+        f"📊 Collection vectors: {info.points_count}, dim: {embedder.dim}, distance: COSINE"
+    )
 
 
 if __name__ == "__main__":

@@ -5,7 +5,8 @@
 - 每个测试用独立 HITLGuard 实例
 - 覆盖：LOW 放行、HIGH 拦截、approve/reject、list_pending
 """
-from core.hitl import HITLGuard, ActionRisk
+
+from core.hitl import ActionRisk, HITLGuard
 
 
 def _fresh_guard() -> HITLGuard:
@@ -37,11 +38,14 @@ def test_high_risk_intercepted():
     """高风险操作（send_email）→ requires_approval=True，进入 pending"""
     guard = _fresh_guard()
 
-    action = guard.check("send_email", {
-        "to": "user@example.com",
-        "subject": "测试",
-        "body": "内容",
-    })
+    action = guard.check(
+        "send_email",
+        {
+            "to": "user@example.com",
+            "subject": "测试",
+            "body": "内容",
+        },
+    )
 
     assert action.requires_approval is True
     assert action.risk_level == ActionRisk.HIGH

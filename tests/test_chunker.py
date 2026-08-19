@@ -5,6 +5,7 @@
 - 用真实的 ParsedElement 数据验证切分行为
 - 覆盖：文本递归切分、表格独立保留、chunk_id 生成
 """
+
 from core.chunker import SmartChunker
 from core.parser import ParsedElement
 
@@ -31,6 +32,7 @@ def _table_el(text: str, source: str = "doc.pdf", page: int = 1) -> ParsedElemen
 # 1. 短文本不切分
 # ============================================
 
+
 def test_short_text_not_split():
     """短文本（< chunk_size）应保持完整"""
     chunker = SmartChunker(chunk_size=512, overlap=50)
@@ -46,6 +48,7 @@ def test_short_text_not_split():
 # 2. 长文本递归切分
 # ============================================
 
+
 def test_long_text_split_into_multiple_chunks():
     """长文本（> chunk_size）应切分为多个 chunk"""
     chunker = SmartChunker(chunk_size=100, overlap=20)
@@ -57,12 +60,15 @@ def test_long_text_split_into_multiple_chunks():
     assert len(docs) >= 2, f"应切分为至少 2 个 chunk，实际 {len(docs)}"
     # 每个 chunk 不超过 chunk_size
     for doc in docs:
-        assert len(doc.page_content) <= 120, f"chunk 超长: {len(doc.page_content)}"  # 允许一点 overlap 余量
+        assert (
+            len(doc.page_content) <= 120
+        ), f"chunk 超长: {len(doc.page_content)}"  # 允许一点 overlap 余量
 
 
 # ============================================
 # 3. 表格独立保留
 # ============================================
+
 
 def test_table_as_standalone_chunk():
     """表格元素应独立成 chunk，不参与文本切分"""
@@ -86,6 +92,7 @@ def test_table_as_standalone_chunk():
 # ============================================
 # 4. chunk_id 生成
 # ============================================
+
 
 def test_chunk_ids_are_unique():
     """每个 chunk 应有唯一的 chunk_id"""
@@ -118,6 +125,7 @@ def test_chunk_id_format():
 # 5. 空输入
 # ============================================
 
+
 def test_empty_elements():
     """空元素列表应返回空列表"""
     chunker = SmartChunker()
@@ -128,6 +136,7 @@ def test_empty_elements():
 # ============================================
 # 6. 元数据透传
 # ============================================
+
 
 def test_metadata_preserved():
     """chunk 应保留原始元素的 metadata"""
@@ -143,6 +152,7 @@ def test_metadata_preserved():
 # ============================================
 # 7. 混合元素类型
 # ============================================
+
 
 def test_mixed_text_and_table():
     """混合 text 和 table 元素应正确处理"""

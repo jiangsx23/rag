@@ -6,13 +6,15 @@
 3. 连接失败兜底：Redis 挂了不抛异常，session 走内存（仅限当前进程）
 4. ping() 暴露给 /health 用
 """
+
+import hashlib
 import json
 import time
-import hashlib
 from dataclasses import dataclass, field
 from typing import Optional
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+
 import redis
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from app.config import settings
 from app.logger import logger
@@ -22,6 +24,7 @@ from core.llm import get_default_llm
 @dataclass
 class SessionMemory:
     """单个 session 的记忆"""
+
     session_id: str
     user_id: str
     messages: list[BaseMessage] = field(default_factory=list)
@@ -55,7 +58,7 @@ class MemoryManager:
 
         # 用共享 LLM 做 Query 改写
         self.rewrite_llm = rewrite_llm or get_default_llm()
-        
+
         # 测试连接
         try:
             self.redis.ping()
@@ -95,7 +98,7 @@ class MemoryManager:
         # 滑窗：超过 max_messages 就触发摘要
         if len(session.messages) > self.max_messages:
             session.summary = self._summarize_history(session)
-            session.messages = session.messages[-self.max_messages:]
+            session.messages = session.messages[-self.max_messages :]
 
         key = f"session:{session.user_id}:{session.session_id}"
         try:
@@ -122,13 +125,15 @@ class MemoryManager:
         """核心：把多轮对话压缩成独立 query"""
         if not session.messages:
             return current_query
-        
+
         # 拿最近 6 条消息
-        history_text = "\n".join([
-            f"{'用户' if isinstance(m, HumanMessage) else 'AI'}: {m.content[:100]}"
-            for m in session.messages[-6:]
-        ])
-        
+        history_text = "\n".join(
+            [
+                f"{'用户' if isinstance(m, HumanMessage) else 'AI'}: {m.content[:100]}"
+                for m in session.messages[-6:]
+            ]
+        )
+
         prompt = f"""基于以下对话历史，把用户的最后问题改写成一个独立、完整的问题。
 
 【规则】
@@ -148,11 +153,11 @@ class MemoryManager:
         try:
             response = self.rewrite_llm.invoke(prompt)
             rewritten = response.content.strip()
-            
+
             # 兜底：异常时返回原 query
             if not rewritten or len(rewritten) > 200:
                 return current_query
-            
+
             logger.info(f"Query rewrite: '{current_query}' -> '{rewritten}'")
             return rewritten
         except Exception as e:
@@ -161,10 +166,12 @@ class MemoryManager:
 
     def _summarize_history(self, session: SessionMemory) -> str:
         """历史过长时生成摘要"""
-        history_text = "\n".join([
-            f"{'用户' if isinstance(m, HumanMessage) else 'AI'}: {m.content[:200]}"
-            for m in session.messages
-        ])
+        history_text = "\n".join(
+            [
+                f"{'用户' if isinstance(m, HumanMessage) else 'AI'}: {m.content[:200]}"
+                for m in session.messages
+            ]
+        )
         prompt = f"请将以下对话历史压缩成 100 字以内的摘要：\n\n{history_text}\n\n摘要："
         try:
             return self.rewrite_llm.invoke(prompt).content.strip()
@@ -173,9 +180,7 @@ class MemoryManager:
 
     def _generate_session_id(self, user_id: str) -> str:
         """生成 session_id"""
-        return hashlib.md5(
-            f"{user_id}-{time.time()}".encode()
-        ).hexdigest()[:16]
+        return hashlib.md5(f"{user_id}-{time.time()}".encode()).hexdigest()[:16]
 
     def _serialize(self, session: SessionMemory) -> dict:
         """session → dict（role 用小写，跨进程稳定）"""
@@ -183,9 +188,11 @@ class MemoryManager:
             "session_id": session.session_id,
             "user_id": session.user_id,
             "messages": [
-                {"role": "human", "content": m.content}
-                if isinstance(m, HumanMessage)
-                else {"role": "ai", "content": m.content}
+                (
+                    {"role": "human", "content": m.content}
+                    if isinstance(m, HumanMessage)
+                    else {"role": "ai", "content": m.content}
+                )
                 for m in session.messages
             ],
             "summary": session.summary,
