@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=64.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag-agent-system"
@@ -33,10 +33,18 @@ dependencies = [
     "tenacity>=8.5.0",
 ]
 
+# 只打包 app 和 core 两个包（仓库里还有 data/eval/scripts 等非包目录）
+[tool.setuptools.packages.find]
+include = ["app*", "core*"]
+
 [tool.pytest.ini_options]
 markers = [
     "integration: 需要真实外部服务的集成测试（DeepSeek / Qdrant / Redis）",
 ]
+
+# 覆盖率测量排除 UI 外壳（Streamlit 页面，需浏览器环境，单元测试不覆盖）
+[tool.coverage.run]
+omit = ["app/ui.py"]
 
 [tool.ruff]
 line-length = 100
