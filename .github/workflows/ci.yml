@@ -217,6 +217,9 @@ jobs:
     name: ✅ CI Status Summary
     runs-on: ubuntu-latest
     needs: [lint, test, security, build]
+    permissions:
+      issues: write
+      pull-requests: write
     if: always()
     steps:
       - name: 📊 检查所有 Job 状态
