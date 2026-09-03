@@ -6,7 +6,9 @@
 - 错误不抛异常，返回字符串（让 Agent 能自我修复）
 - 重要工具（search_knowledge_base）复用现有 Pipeline 单例
 """
+
 from datetime import datetime
+
 from langchain_core.tools import tool
 
 from app.logger import logger
@@ -30,15 +32,12 @@ def search_knowledge_base(query: str) -> str:
     """
     try:
         from app.api import get_pipeline
+
         pipeline = get_pipeline()
         result = pipeline.query(query, top_k=5)
-        sources = [
-            s.get("metadata", {}).get("source", "?")
-            for s in result.get("sources", [])
-        ]
+        sources = [s.get("metadata", {}).get("source", "?") for s in result.get("sources", [])]
         return (
-            f"答案：{result.get('answer', '（无）')}\n"
-            f"来源：{sources if sources else '（无）'}"
+            f"答案：{result.get('answer', '（无）')}\n" f"来源：{sources if sources else '（无）'}"
         )
     except Exception as e:
         logger.exception("search_knowledge_base failed")
@@ -63,9 +62,16 @@ def python_calculator(expression: str) -> str:
     """
     # 沙箱：禁用内置函数和属性访问
     allowed_names = {
-        "abs": abs, "round": round, "min": min, "max": max,
-        "sum": sum, "len": len, "pow": pow,
-        "True": True, "False": False, "None": None,
+        "abs": abs,
+        "round": round,
+        "min": min,
+        "max": max,
+        "sum": sum,
+        "len": len,
+        "pow": pow,
+        "True": True,
+        "False": False,
+        "None": None,
     }
     try:
         result = eval(expression, {"__builtins__": {}}, allowed_names)
@@ -102,10 +108,7 @@ def send_email(to: str, subject: str, body: str) -> str:
         模拟发送结果。真实环境应调用 SMTP / SendGrid / 飞书 webhook。
     """
     logger.info(f"[MOCK EMAIL] to={to}, subject={subject}")
-    return (
-        f"[模拟发送] 已发给 {to}，主题「{subject}」，"
-        f"正文长度 {len(body)} 字符"
-    )
+    return f"[模拟发送] 已发给 {to}，主题「{subject}」，" f"正文长度 {len(body)} 字符"
 
 
 # ============================================
@@ -128,16 +131,22 @@ def web_search(query: str) -> str:
 # ============================================
 # 给 Agent 用的描述 + 注册表
 # ============================================
-TOOL_DESCRIPTIONS = """- search_knowledge_base: 在企业知识库中检索。参数 {"query": "问题"}。适用：公司制度、政策、流程、文档内容；不适用：实时计算、外部信息。
-- python_calculator: 执行数学计算。参数 {"expression": "Python 表达式"}。示例：100*1.13, sum([1,2,3]), 2**10。
-- get_current_time: 获取当前时间。无需参数。
-- send_email: 发送邮件。参数 {"to": "邮箱", "subject": "主题", "body": "正文"}。
-- web_search: 搜索互联网实时信息。参数 {"query": "关键词"}。适用：新闻、天气、当前事件。"""
+TOOL_DESCRIPTIONS = "\n".join(
+    [
+        '- search_knowledge_base: 在企业知识库中检索。参数 {"query": "问题"}。'
+        "适用：公司制度、政策、流程、文档内容；不适用：实时计算、外部信息。",
+        '- python_calculator: 执行数学计算。参数 {"expression": "Python 表达式"}。'
+        "示例：100*1.13, sum([1,2,3]), 2**10。",
+        "- get_current_time: 获取当前时间。无需参数。",
+        '- send_email: 发送邮件。参数 {"to": "邮箱", "subject": "主题", "body": "正文"}。',
+        '- web_search: 搜索互联网实时信息。参数 {"query": "关键词"}。适用：新闻、天气、当前事件。',
+    ]
+)
 
 TOOLS = {
     "search_knowledge_base": search_knowledge_base.func,
-    "python_calculator":     python_calculator.func,
-    "get_current_time":      get_current_time.func,
-    "send_email":            send_email.func,
-    "web_search":            web_search.func,
+    "python_calculator": python_calculator.func,
+    "get_current_time": get_current_time.func,
+    "send_email": send_email.func,
+    "web_search": web_search.func,
 }

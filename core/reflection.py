@@ -7,16 +7,16 @@
 - 评估维度：准确性、完整性、引用、幻觉
 - 支持重试循环：低分 → regenerate_func 重写 → 再评估
 """
-from typing import Callable, Optional
-from pydantic import BaseModel, Field
-from typing import Literal
+
+from typing import Callable, Literal, Optional
+
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.logger import logger
 from core.llm import get_default_llm
 from core.observability import observe, span
-
 
 SYSTEM_PROMPT = """你是严格的答案质量评审员。
 
@@ -37,6 +37,7 @@ SYSTEM_PROMPT = """你是严格的答案质量评审员。
 
 class AnswerEvaluation(BaseModel):
     """LLM Judge 的评估结果"""
+
     score: int = Field(ge=1, le=10, description="答案质量评分 1-10")
     accuracy: Literal["high", "medium", "low"] = Field(description="准确性")
     completeness: Literal["high", "medium", "low"] = Field(description="完整性")
@@ -70,14 +71,18 @@ class ReflectionModule:
         # 复用共享 LLM（temperature=0 保证一致性）
         self.llm = llm or get_default_llm()
         self.evaluator = self.llm.with_structured_output(AnswerEvaluation)
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human",
-                "【问题】{question}\n"
-                "【答案】{answer}\n"
-                "【参考 Context】\n{sources}\n\n"
-                "请严格按格式评估。如果答案里没有引用任何来源，has_citation=False。"),
-        ])
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SYSTEM_PROMPT),
+                (
+                    "human",
+                    "【问题】{question}\n"
+                    "【答案】{answer}\n"
+                    "【参考 Context】\n{sources}\n\n"
+                    "请严格按格式评估。如果答案里没有引用任何来源，has_citation=False。",
+                ),
+            ]
+        )
 
     # ---------- 单次评估 ----------
 
@@ -89,9 +94,11 @@ class ReflectionModule:
         sources: list[str],
     ) -> AnswerEvaluation:
         """评估一次答案质量"""
-        sources_text = "\n".join([
-            f"[{i+1}] {s[:500]}" for i, s in enumerate(sources)
-        ]) if sources else "（无参考来源）"
+        sources_text = (
+            "\n".join([f"[{i+1}] {s[:500]}" for i, s in enumerate(sources)])
+            if sources
+            else "（无参考来源）"
+        )
         with span("reflection-llm-call", input_data={"question": question}):
             try:
                 messages = self.prompt.format_messages(

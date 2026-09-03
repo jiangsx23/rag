@@ -8,19 +8,20 @@
 用法：
     python eval/generate_qa_from_docs.py
 """
+
 import json
 import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_deepseek import ChatDeepSeek
+from qdrant_client import QdrantClient
+
 from app.config import settings
 from app.logger import logger
-from qdrant_client import QdrantClient
-from langchain_deepseek import ChatDeepSeek
-from langchain_core.prompts import ChatPromptTemplate
-
 
 SYSTEM_PROMPT = """你是一个 QA 数据集生成器。请基于提供的文档内容，生成贴合该文档的问答对。
 
@@ -67,8 +68,10 @@ def load_chunks_from_qdrant():
             break
         offset = next_offset
 
-    logger.info(f"从 Qdrant 读取了 {sum(len(v) for v in docs_by_source.values())} chunks，"
-                f"{len(docs_by_source)} 个文档")
+    logger.info(
+        f"从 Qdrant 读取了 {sum(len(v) for v in docs_by_source.values())} chunks，"
+        f"{len(docs_by_source)} 个文档"
+    )
     return docs_by_source
 
 
@@ -79,16 +82,21 @@ def generate_qa_for_document(llm, source: str, chunks: list[str], count: int = 5
     if len(full_text) > 3500:
         full_text = full_text[:3500] + "\n...（文档较长，已截取核心内容）"
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
-        ("human", """请基于以下文档内容生成 {count} 条问答对。
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", SYSTEM_PROMPT),
+            (
+                "human",
+                """请基于以下文档内容生成 {count} 条问答对。
 
 文档名称：{source}
 文档内容：
 {content}
 
-请生成 {count} 条问答对，覆盖 easy/medium/hard 不同难度。"""),
-    ])
+请生成 {count} 条问答对，覆盖 easy/medium/hard 不同难度。""",
+            ),
+        ]
+    )
 
     messages = prompt.format_messages(
         count=count,
@@ -176,6 +184,7 @@ def main():
 
     # 统计
     from collections import Counter
+
     cats = Counter(item["category"] for item in all_qa)
     diffs = Counter(item["difficulty"] for item in all_qa)
     logger.info(f"类别分布: {dict(cats)}")

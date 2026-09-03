@@ -13,17 +13,19 @@
     2. 打开 eval/new_qa.jsonl 过一遍，改掉不合理的问题或答案
     3. 合并到 eval/dataset.jsonl（或直接替换）
 """
+
+import argparse
 import json
 import sys
-import argparse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_deepseek import ChatDeepSeek
+
 from app.config import settings
 from app.logger import logger
-from langchain_deepseek import ChatDeepSeek
-from langchain_core.prompts import ChatPromptTemplate
 
 # ============================================
 # 模板：按 category + difficulty 组合生成
@@ -43,19 +45,29 @@ SYSTEM_PROMPT = """你是一个企业知识库 QA 数据集生成器。
 {{"question":"...","ground_truth":"...","source_doc":"...","source_page":数字,"difficulty":"easy|medium|hard","category":"policy|process|tech"}}"""
 
 
-def generate_batch(llm: ChatDeepSeek, category: str, difficulty: str, count: int = 10) -> list[dict]:
+def generate_batch(
+    llm: ChatDeepSeek,
+    category: str,
+    difficulty: str,
+    count: int = 10,
+) -> list[dict]:
     """用 LLM 生成一批 QA 对"""
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
-        ("human", """请生成 {count} 条 {difficulty} 难度的 {category} 类问答对。
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", SYSTEM_PROMPT),
+            (
+                "human",
+                """请生成 {count} 条 {difficulty} 难度的 {category} 类问答对。
 
 {category_desc}
 
 要求：
 - {difficulty_desc}
 - 每条包含 question / ground_truth / source_doc / source_page / difficulty / category 字段
-- 纯 JSONL 格式，不要序号、不要多余文字"""),
-    ])
+- 纯 JSONL 格式，不要序号、不要多余文字""",
+            ),
+        ]
+    )
 
     category_desc = {
         "policy": "policy（公司制度/政策类）：年假、病假、加班、调薪、报销标准等",

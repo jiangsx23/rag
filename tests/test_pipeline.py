@@ -5,10 +5,11 @@
 
 运行方式：pytest tests/ -m integration
 """
-import pytest
-from unittest.mock import MagicMock, patch
-from contextlib import ExitStack
 
+from contextlib import ExitStack
+from unittest.mock import MagicMock, patch
+
+import pytest
 from langchain_core.documents import Document
 
 
@@ -50,12 +51,13 @@ class TestRAGPipeline:
         fake_eval.issues = []
         fake_eval.suggestion = ""
         fake_ref = MagicMock()
-        fake_ref.evaluate_rag.return_value = ("答案", fake_eval)
+        # v0.4.0 起 query() 会让 evaluate_rag 的返回值覆盖生成答案。
+        # 这里模拟"反思接受该答案"：把传入的 answer 原样返回，
+        # 这样断言仍验证"pipeline 返回 generator 的答案"这一编排逻辑。
+        fake_ref.evaluate_rag.side_effect = lambda **kw: (kw["answer"], fake_eval)
         # 直接替换 _build_pipeline 中设置的 mock_ref.return_value
-        # 注意：需要从 stack 获取已创建的 mock
-        from unittest.mock import _get_identifier
-        # 用另一种方式：直接 patch 返回值
         import core.reflection as _ref
+
         _ref.ReflectionModule.return_value = fake_ref
 
         return p

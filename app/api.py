@@ -8,11 +8,12 @@
 5. 异常统一处理（避免 500 直接给前端）
 6. Step 6: /agent/chat 接口
 """
-import sys
+
 import json
-from pathlib import Path
-from typing import Optional, AsyncGenerator
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import AsyncGenerator, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -24,8 +25,12 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.logger import logger
 from core.observability import (
-    is_enabled as langfuse_enabled,
     flush as langfuse_flush,
+)
+from core.observability import (
+    is_enabled as langfuse_enabled,
+)
+from core.observability import (
     observe,
 )
 
@@ -35,6 +40,7 @@ from core.observability import (
 try:
     if settings.LANGFUSE_PUBLIC_KEY and settings.LANGFUSE_SECRET_KEY:
         from langfuse import Langfuse
+
         langfuse = Langfuse(
             public_key=settings.LANGFUSE_PUBLIC_KEY,
             secret_key=settings.LANGFUSE_SECRET_KEY,
@@ -61,6 +67,7 @@ def get_pipeline():
     if _pipeline_singleton is None:
         logger.info("🔧 首次加载 RAGPipeline（BGE 模型约 30s）...")
         from core.pipeline import RAGPipeline
+
         _pipeline_singleton = RAGPipeline()
         logger.info("✅ RAGPipeline 单例已就绪")
     return _pipeline_singleton
@@ -180,8 +187,9 @@ async def _chat_sse(req: ChatRequest) -> AsyncGenerator[str, None]:
       data: {"type": "done",      "session_id": "...", "reflection": ...}\\n\\n
       data: {"type": "error",     "message": "..."}\\n\\n
     """
+    from langchain_core.messages import AIMessage, HumanMessage
+
     from core.memory import MemoryManager
-    from langchain_core.messages import HumanMessage, AIMessage
 
     try:
         # 立即 yield，告知前端正在加载
@@ -224,6 +232,7 @@ async def list_sessions(user_id: str):
     """列出某 user 的所有 session（按最后活跃时间倒序）"""
     try:
         from core.memory import MemoryManager
+
         memory = MemoryManager()
         pattern = f"session:{user_id}:*"
         keys = memory.redis.keys(pattern)
@@ -234,13 +243,15 @@ async def list_sessions(user_id: str):
             if not data:
                 continue
             d = json.loads(data)
-            sessions.append({
-                "session_id": d.get("session_id"),
-                "user_id": d.get("user_id"),
-                "message_count": len(d.get("messages", [])),
-                "last_active": d.get("last_active"),
-                "summary": d.get("summary", "")[:120],
-            })
+            sessions.append(
+                {
+                    "session_id": d.get("session_id"),
+                    "user_id": d.get("user_id"),
+                    "message_count": len(d.get("messages", [])),
+                    "last_active": d.get("last_active"),
+                    "summary": d.get("summary", "")[:120],
+                }
+            )
         sessions.sort(key=lambda x: x.get("last_active", 0), reverse=True)
         return {"user_id": user_id, "count": len(sessions), "sessions": sessions}
     except Exception as e:
@@ -253,6 +264,7 @@ async def delete_session(user_id: str, session_id: str):
     """删除指定 session"""
     try:
         from core.memory import MemoryManager
+
         memory = MemoryManager()
         deleted = memory.redis.delete(f"session:{user_id}:{session_id}")
         return {"deleted": bool(deleted), "session_id": session_id}
@@ -266,6 +278,7 @@ async def clear_user_sessions(user_id: str):
     """清空某 user 的所有 session"""
     try:
         from core.memory import MemoryManager
+
         memory = MemoryManager()
         pattern = f"session:{user_id}:*"
         keys = memory.redis.keys(pattern)
@@ -299,6 +312,7 @@ async def agent_chat(req: AgentChatRequest):
     """
     try:
         from core.agent import get_agent
+
         agent = get_agent()
         result = agent.run(req.question, req.session_id, req.user_id)
         return result
@@ -319,6 +333,7 @@ async def list_pending_actions():
     """列出所有待人工审批的高风险操作"""
     try:
         from core.hitl import get_hitl_guard
+
         guard = get_hitl_guard()
         actions = guard.list_pending()
         return {
@@ -344,6 +359,7 @@ async def approve_action(action_id: str):
     """批准高风险操作"""
     try:
         from core.hitl import get_hitl_guard
+
         guard = get_hitl_guard()
         success = guard.approve(action_id)
         if not success:
@@ -369,6 +385,7 @@ async def reject_action(action_id: str):
     """拒绝高风险操作"""
     try:
         from core.hitl import get_hitl_guard
+
         guard = get_hitl_guard()
         success = guard.reject(action_id)
         if not success:

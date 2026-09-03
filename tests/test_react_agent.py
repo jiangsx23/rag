@@ -12,6 +12,7 @@
 4. 达到 max_iter 强制降级
 5. 调不存在的工具能优雅报错并继续
 """
+
 from unittest.mock import MagicMock
 
 from core.react_agent import ReActAgent
@@ -34,9 +35,11 @@ def test_final_answer_path():
         tool_descriptions="- search: 搜索",
         max_iterations=3,
     )
-    agent.llm = _mock_llm([
-        "Thought: 我知道答案\nFinalAnswer: 10 个工作日",
-    ])
+    agent.llm = _mock_llm(
+        [
+            "Thought: 我知道答案\nFinalAnswer: 10 个工作日",
+        ]
+    )
     result = agent.run("年假几天？")
 
     assert result.answer == "10 个工作日"
@@ -55,12 +58,12 @@ def test_tool_call_path():
         tool_descriptions="- calc: 计算",
         max_iterations=5,
     )
-    agent.llm = _mock_llm([
-        "Thought: 需要算 100*2\n"
-        'Action: calc\nActionInput: {"expression": "100*2"}\n',
-
-        "Thought: 工具返回 200\nFinalAnswer: 200",
-    ])
+    agent.llm = _mock_llm(
+        [
+            "Thought: 需要算 100*2\n" 'Action: calc\nActionInput: {"expression": "100*2"}\n',
+            "Thought: 工具返回 200\nFinalAnswer: 200",
+        ]
+    )
     result = agent.run("100*2 = ?")
 
     assert result.total_iterations == 2
@@ -81,10 +84,12 @@ def test_parse_failure_recovery():
         tool_descriptions="- dummy: 测试",
         max_iterations=5,
     )
-    agent.llm = _mock_llm([
-        "胡言乱语完全无法解析",          # 解析失败
-        "Thought: 好的我重新来\nFinalAnswer: 42",  # 修复
-    ])
+    agent.llm = _mock_llm(
+        [
+            "胡言乱语完全无法解析",  # 解析失败
+            "Thought: 好的我重新来\nFinalAnswer: 42",  # 修复
+        ]
+    )
     result = agent.run("?")
 
     assert result.finished_reason == "final_answer"
@@ -102,11 +107,13 @@ def test_max_iterations():
         tool_descriptions="- search: 搜索",
         max_iterations=3,
     )
-    agent.llm = _mock_llm([
-        'Thought: 再查一次\nAction: search\nActionInput: {"query":"x"}',
-        'Thought: 再查\nAction: search\nActionInput: {"query":"y"}',
-        'Thought: 再查\nAction: search\nActionInput: {"query":"z"}',
-    ])
+    agent.llm = _mock_llm(
+        [
+            'Thought: 再查一次\nAction: search\nActionInput: {"query":"x"}',
+            'Thought: 再查\nAction: search\nActionInput: {"query":"y"}',
+            'Thought: 再查\nAction: search\nActionInput: {"query":"z"}',
+        ]
+    )
     result = agent.run("找不到答案")
 
     assert result.finished_reason in ("max_iter", "tool_error")  # 工具签名对了才是 max_iter
@@ -125,12 +132,12 @@ def test_unknown_tool():
         tool_descriptions="- valid_tool: 唯一合法工具",
         max_iterations=3,
     )
-    agent.llm = _mock_llm([
-        'Thought: 我以为有这个工具\n'
-        'Action: invalid_tool\nActionInput: {}\n',
-
-        "Thought: 我换一个\nFinalAnswer: 跳过",
-    ])
+    agent.llm = _mock_llm(
+        [
+            "Thought: 我以为有这个工具\n" "Action: invalid_tool\nActionInput: {}\n",
+            "Thought: 我换一个\nFinalAnswer: 跳过",
+        ]
+    )
     result = agent.run("?")
 
     # 关键：解析能继续，没崩
@@ -154,10 +161,12 @@ def test_tool_exception():
         tool_descriptions="- bad: 会爆的工具",
         max_iterations=3,
     )
-    agent.llm = _mock_llm([
-        'Action: bad\nActionInput: {}',
-        "FinalAnswer: 出错了",
-    ])
+    agent.llm = _mock_llm(
+        [
+            "Action: bad\nActionInput: {}",
+            "FinalAnswer: 出错了",
+        ]
+    )
     result = agent.run("?")
 
     print("--------------------------")
@@ -178,10 +187,12 @@ def test_parser_handles_markdown_fences():
         tool_descriptions="- calc: 计算",
         max_iterations=3,
     )
-    agent.llm = _mock_llm([
-        'Thought: 用计算器\nAction: calc\nActionInput: ```json\n{"expression":"6*7"}\n```',
-        "FinalAnswer: 42",
-    ])
+    agent.llm = _mock_llm(
+        [
+            'Thought: 用计算器\nAction: calc\nActionInput: ```json\n{"expression":"6*7"}\n```',
+            "FinalAnswer: 42",
+        ]
+    )
     result = agent.run("?")
 
     # 这个 case 当前解析器可能解析失败，但不应该崩

@@ -1,5 +1,7 @@
 """LLM 生成 - DeepSeek"""
+
 from typing import Generator as TypingGenerator
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from core.llm import get_default_llm
@@ -18,10 +20,12 @@ Context:
 
     def __init__(self, llm=None):
         self.llm = llm or get_default_llm()
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", self.SYSTEM_PROMPT),
-            ("human", "{question}"),
-        ])
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.SYSTEM_PROMPT),
+                ("human", "{question}"),
+            ]
+        )
 
     def generate(self, question: str, context: str) -> str:
         """生成答案（非流式）"""

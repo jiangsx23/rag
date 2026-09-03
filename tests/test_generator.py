@@ -5,6 +5,7 @@
 - LangChain 的 pipe (prompt | llm) 在内部会直接 call mock，
   所以需要设置 mock.return_value 而非 mock.invoke.return_value
 """
+
 from unittest.mock import MagicMock
 
 from core.generator import Generator
@@ -26,6 +27,7 @@ def _mock_llm(response: str = "测试答案"):
 # ============================================
 # 1. 正常生成
 # ============================================
+
 
 def test_generate_returns_llm_response():
     """generate 应返回 LLM 返回的 content"""
@@ -60,6 +62,7 @@ def test_generate_passes_question_and_context():
 # 2. 边界条件
 # ============================================
 
+
 def test_generate_empty_context():
     """空 context 不应崩溃"""
     gen = Generator(llm=_mock_llm("我不知道"))
@@ -86,12 +89,14 @@ def test_generate_long_context():
 # 3. LLM 异常传播
 # ============================================
 
+
 def test_generate_llm_exception_propagates():
     """LLM 抛异常时，异常应原样透传（由调用方决定是否 catch）"""
     bad_llm = MagicMock()
     bad_llm.side_effect = RuntimeError("API timeout")
 
     import pytest
+
     with pytest.raises(RuntimeError, match="API timeout"):
         gen = Generator(llm=bad_llm)
         gen.generate("问题", "上下文")
@@ -100,6 +105,7 @@ def test_generate_llm_exception_propagates():
 # ============================================
 # 4. Prompt 模板结构
 # ============================================
+
 
 def test_system_prompt_contains_context_placeholder():
     """SYSTEM_PROMPT 应包含 {context} 占位符"""

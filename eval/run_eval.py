@@ -11,12 +11,12 @@
     3. 调用 Ragas evaluate 计算 faithfulness / answer_relevancy / context_precision / context_recall
     4. 结果写入 eval/reports/
 """
+
+import argparse
 import json
 import sys
-import argparse
-import csv
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # 让脚本能找到项目根目录
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -52,7 +52,7 @@ def main():
     # 1. 加载数据集
     dataset = load_dataset(args.dataset)
     if args.sample:
-        dataset = dataset[:args.sample]
+        dataset = dataset[: args.sample]
         logger.info(f"Sample mode: running on first {args.sample} questions")
 
     # 2. 初始化 Pipeline
@@ -68,32 +68,36 @@ def main():
 
         try:
             result = pipeline.query(question, top_k=5)
-            results.append({
-                "question": question,
-                "answer": result["answer"],
-                "contexts": [s["content"] for s in result["sources"]],
-                "ground_truth": item["ground_truth"],
-            })
+            results.append(
+                {
+                    "question": question,
+                    "answer": result["answer"],
+                    "contexts": [s["content"] for s in result["sources"]],
+                    "ground_truth": item["ground_truth"],
+                }
+            )
         except Exception as e:
             logger.exception(f"Query failed for {qid}: {e}")
-            results.append({
-                "question": question,
-                "answer": f"[ERROR] {e}",
-                "contexts": [],
-                "ground_truth": item["ground_truth"],
-            })
+            results.append(
+                {
+                    "question": question,
+                    "answer": f"[ERROR] {e}",
+                    "contexts": [],
+                    "ground_truth": item["ground_truth"],
+                }
+            )
 
     # 4. Ragas 评测
     logger.info("Running Ragas evaluation...")
     try:
+        from datasets import Dataset
         from ragas import evaluate
         from ragas.metrics import (
-            faithfulness,
             answer_relevancy,
             context_precision,
             context_recall,
+            faithfulness,
         )
-        from datasets import Dataset
 
         ds = Dataset.from_list(results)
         scores = evaluate(

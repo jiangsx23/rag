@@ -16,16 +16,16 @@
     - 可选: Redis 服务 (redis://localhost:6379)
 """
 
-import os
-import sys
-import json
-import time
-import signal
 import argparse
+import json
+import os
+import signal
 import subprocess
+import sys
+import time
 import webbrowser
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # ============================================
 # Windows GBK 终端兼容：强制 stdout/stderr 用 UTF-8
@@ -53,7 +53,8 @@ def safe_print(*args, **kwargs):
 
 
 # 全局替换 print → safe_print（避免每处手动改）
-import builtins as _builtins
+import builtins as _builtins  # noqa: E402  # 有意放在 safe_print 定义后，集中打补丁
+
 _builtins.print = safe_print
 
 # ============================================
@@ -92,7 +93,15 @@ SERVICES = {
     },
     "ui": {
         "name": "Streamlit UI",
-        "cmd": [_PYTHON, "-m", "streamlit", "run", "app/ui.py", "--server.port=8501", "--server.address=0.0.0.0"],
+        "cmd": [
+            _PYTHON,
+            "-m",
+            "streamlit",
+            "run",
+            "app/ui.py",
+            "--server.port=8501",
+            "--server.address=0.0.0.0",
+        ],
         "cwd": str(ROOT),
         "log_file": str(LOGS_DIR / "ui.log"),
         "url": "http://localhost:8501",
@@ -112,6 +121,7 @@ SERVICES = {
 # ============================================
 # PID 持久化管理
 # ============================================
+
 
 def load_pids():
     """从 JSON 文件加载记录的 PID"""
@@ -136,6 +146,7 @@ def is_pid_alive(pid: int) -> bool:
     if sys.platform == "win32":
         try:
             import ctypes
+
             kernel32 = ctypes.windll.kernel32
             handle = kernel32.OpenProcess(0x100000, False, pid)
             if not handle:
@@ -146,7 +157,9 @@ def is_pid_alive(pid: int) -> bool:
             # fallback: 用 tasklist
             result = subprocess.run(
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             return str(pid) in result.stdout
     else:
@@ -188,7 +201,9 @@ def find_pid_by_port(port: int) -> int | None:
         if sys.platform == "win32":
             result = subprocess.run(
                 ["netstat", "-ano"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             # netstat -ano 输出: Proto LocalAddr ForeignAddr State PID
             # 例: TCP 0.0.0.0:8000 0.0.0.0:0 LISTENING 27920
@@ -196,9 +211,13 @@ def find_pid_by_port(port: int) -> int | None:
                 parts = line.strip().split()
                 if len(parts) >= 5:
                     local_addr = parts[1]  # 如 "0.0.0.0:8000"
-                    state = parts[3]        # "LISTENING"
-                    pid_str = parts[4]      # "27920"
-                    if local_addr.endswith(f":{port}") and state == "LISTENING" and pid_str.isdigit():
+                    state = parts[3]  # "LISTENING"
+                    pid_str = parts[4]  # "27920"
+                    if (
+                        local_addr.endswith(f":{port}")
+                        and state == "LISTENING"
+                        and pid_str.isdigit()
+                    ):
                         # netstat 输出可能过时，需确认 PID 真实存活
                         candidate = int(pid_str)
                         if is_pid_alive(candidate):
@@ -206,12 +225,15 @@ def find_pid_by_port(port: int) -> int | None:
         else:
             result = subprocess.run(
                 ["ss", "-tlnp", f"sport = :{port}"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             for line in result.stdout.splitlines():
                 if f":{port}" in line and "LISTEN" in line:
                     import re
-                    m = re.search(r'pid=(\d+)', line)
+
+                    m = re.search(r"pid=(\d+)", line)
                     if m:
                         return int(m.group(1))
     except Exception:
@@ -222,6 +244,7 @@ def find_pid_by_port(port: int) -> int | None:
 # ============================================
 # 进程启动
 # ============================================
+
 
 def start_service(key: str, wait_health: bool = True) -> bool:
     """启动一个服务，返回是否成功"""
@@ -312,10 +335,10 @@ def start_service(key: str, wait_health: bool = True) -> bool:
         # 非核心服务（Redis）找不到可执行文件 → 温和提示
         if key == "redis":
             print()
-            print(f"  ⚠️  未检测到 Redis")
-            print(f"     （多轮对话记忆需要 Redis：docker run -d -p 6379:6379 redis:7-alpine）")
+            print("  ⚠️  未检测到 Redis")
+            print("     （多轮对话记忆需要 Redis：docker run -d -p 6379:6379 redis:7-alpine）")
             return False
-        print(f"\n  ❌ 找不到可执行文件，请确认依赖已安装:")
+        print("\n  ❌ 找不到可执行文件，请确认依赖已安装:")
         print(f"     {' '.join(svc['cmd'])}")
         return False
     except Exception as e:
@@ -325,10 +348,10 @@ def start_service(key: str, wait_health: bool = True) -> bool:
 
 def wait_for_health(url: str, timeout: int = 120, interval: int = 3) -> bool:
     """等待服务健康检查通过"""
-    import urllib.request
     import urllib.error
+    import urllib.request
 
-    print(f"     等待健康检查...", end="", flush=True)
+    print("     等待健康检查...", end="", flush=True)
     start_ts = time.time()
 
     while time.time() - start_ts < timeout:
@@ -350,6 +373,7 @@ def wait_for_health(url: str, timeout: int = 120, interval: int = 3) -> bool:
 # ============================================
 # 进程停止
 # ============================================
+
 
 def stop_service(key: str) -> bool:
     """停止一个服务"""
@@ -384,6 +408,7 @@ def stop_service(key: str) -> bool:
 # ============================================
 # 命令实现
 # ============================================
+
 
 def cmd_start(args):
     """启动服务"""
@@ -429,13 +454,13 @@ def cmd_start(args):
                 print(f"   ❌ {SERVICES[k]['name']} 启动失败")
 
     if "api" in keys and "api" not in errors:
-        print(f"   📡 API:      http://localhost:8000")
-        print(f"   📖 文档:     http://localhost:8000/docs")
-        print(f"   🩺 健康检查:  http://localhost:8000/health")
+        print("   📡 API:      http://localhost:8000")
+        print("   📖 文档:     http://localhost:8000/docs")
+        print("   🩺 健康检查:  http://localhost:8000/health")
     if "ui" in keys and "ui" not in errors:
-        print(f"   🖥️  UI:       http://localhost:8501")
+        print("   🖥️  UI:       http://localhost:8501")
     if "redis" in keys and "redis" not in errors:
-        print(f"   📦 Redis:    redis://localhost:6379")
+        print("   📦 Redis:    redis://localhost:6379")
 
     # 自动打开浏览器
     if args.open and "ui" in keys and "ui" not in errors:
@@ -582,6 +607,7 @@ def cmd_logs(args):
 # 辅助函数
 # ============================================
 
+
 def tail_log(filepath: str, n: int = 50, follow: bool = False):
     """取日志尾部 N 行（兼容 Linux tail -n 效果）"""
     path = Path(filepath)
@@ -629,8 +655,18 @@ def _get_process_runtime(pid: int) -> str:
     if sys.platform == "win32":
         try:
             result = subprocess.run(
-                ["wmic", "process", "where", f"ProcessId={pid}", "get", "CreationDate", "/format:value"],
-                capture_output=True, text=True, timeout=5,
+                [
+                    "wmic",
+                    "process",
+                    "where",
+                    f"ProcessId={pid}",
+                    "get",
+                    "CreationDate",
+                    "/format:value",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             for line in result.stdout.splitlines():
                 if "CreationDate" in line:
@@ -644,6 +680,7 @@ def _get_process_runtime(pid: int) -> str:
     else:
         try:
             import psutil
+
             proc = psutil.Process(pid)
             created = datetime.fromtimestamp(proc.create_time())
             elapsed = datetime.now() - created
@@ -708,15 +745,16 @@ def _check_hf_reachable():
         urllib.request.urlopen(f"{_HF_MIRROR}/BAAI/bge-m3", timeout=10)
         print(f"     ✅ 镜像 {_HF_MIRROR} 可用，模型将从镜像下载")
     except Exception:
-        print(f"     ⚠️  镜像也不可达！请手动下载模型或检查网络：")
-        print(f"        1. 设置代理: set HTTPS_PROXY=http://your-proxy:port")
+        print("     ⚠️  镜像也不可达！请手动下载模型或检查网络：")
+        print("        1. 设置代理: set HTTPS_PROXY=http://your-proxy:port")
         print(f"        2. 或设置镜像: set HF_ENDPOINT={_HF_MIRROR}")
-        print(f"        3. 或手动下载模型到本地缓存")
+        print("        3. 或手动下载模型到本地缓存")
 
 
 # ============================================
 # CLI 入口
 # ============================================
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -761,9 +799,13 @@ def main():
 
     # logs
     p_logs = subparsers.add_parser("logs", help="查看服务日志")
-    p_logs.add_argument("service", nargs="?", default="api",
-                        choices=list(SERVICES.keys()),
-                        help="服务名称 (默认: api)")
+    p_logs.add_argument(
+        "service",
+        nargs="?",
+        default="api",
+        choices=list(SERVICES.keys()),
+        help="服务名称 (默认: api)",
+    )
     p_logs.add_argument("--lines", "-n", type=int, default=50, help="显示行数")
     p_logs.add_argument("--follow", "-f", action="store_true", help="实时监听日志")
     p_logs.set_defaults(func=cmd_logs)

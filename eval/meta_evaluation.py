@@ -9,15 +9,15 @@
     3. 对比 LLM 评分 vs 人工评分，计算一致率
     4. 输出报告到 eval/reports/meta_evaluation.json
 """
-import sys
+
 import json
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.logger import logger
-from core.reflection import ReflectionModule, AnswerEvaluation
-
+from core.reflection import AnswerEvaluation, ReflectionModule
 
 # 人工标注的评测样本（20 条）
 # 注意：这些是示例数据，建议替换为你自己的标注
@@ -204,7 +204,9 @@ _EXTRA = [
     {
         "question": "信息安全红线有哪些？",
         "answer": "禁止共享账号密码、禁止在公网传输未加密数据。",
-        "sources": ["禁止将账号密码共享给他人、禁止将敏感数据下载到个人设备、禁止在公网传输未加密数据"],
+        "sources": [
+            "禁止将账号密码共享给他人、禁止将敏感数据下载到个人设备、禁止在公网传输未加密数据"
+        ],
         "human_score": 6,
         "human_is_hallucination": False,
         "human_is_acceptable": False,
@@ -257,9 +259,16 @@ def run_meta_evaluation():
     print("=" * 70)
     print(f"\n📊 Meta-evaluation Report ({total} samples)")
     print("-" * 40)
-    print(f"  Score Agreement (|LLM - Human| ≤ 2):     {score_matches}/{total} = {score_matches/total:.0%}")
-    print(f"  Hallucination Match:                     {hallucination_matches}/{total} = {hallucination_matches/total:.0%}")
-    print(f"  Acceptable Match:                        {acceptable_matches}/{total} = {acceptable_matches/total:.0%}")
+    # 空格用于列对齐，行长故意超限，noqa
+    print(
+        f"  Score Agreement (|LLM - Human| ≤ 2):     {score_matches}/{total} = {score_matches/total:.0%}"  # noqa: E501
+    )
+    print(
+        f"  Hallucination Match:                     {hallucination_matches}/{total} = {hallucination_matches/total:.0%}"  # noqa: E501
+    )
+    print(
+        f"  Acceptable Match:                        {acceptable_matches}/{total} = {acceptable_matches/total:.0%}"  # noqa: E501
+    )
     print("-" * 40)
 
     # 保存报告

@@ -1,6 +1,8 @@
 """智能切分 - 表格独立 + 文本递归"""
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from .parser import ParsedElement
 
 
@@ -17,26 +19,30 @@ class SmartChunker:
 
         for el in elements:
             if el.element_type in ("table", "image"):
-                documents.append(Document(
-                    page_content=self._format_special(el),
-                    metadata={
-                        **el.metadata,
-                        "element_type": el.element_type,
-                        "chunk_strategy": "standalone",
-                    }
-                ))
+                documents.append(
+                    Document(
+                        page_content=self._format_special(el),
+                        metadata={
+                            **el.metadata,
+                            "element_type": el.element_type,
+                            "chunk_strategy": "standalone",
+                        },
+                    )
+                )
             else:
                 chunks = self.text_splitter.split_text(el.text)
                 for i, chunk_text in enumerate(chunks):
-                    documents.append(Document(
-                        page_content=chunk_text,
-                        metadata={
-                            **el.metadata,
-                            "element_type": "text",
-                            "chunk_strategy": "recursive",
-                            "chunk_index": i,
-                        }
-                    ))
+                    documents.append(
+                        Document(
+                            page_content=chunk_text,
+                            metadata={
+                                **el.metadata,
+                                "element_type": "text",
+                                "chunk_strategy": "recursive",
+                                "chunk_index": i,
+                            },
+                        )
+                    )
 
         for i, doc in enumerate(documents):
             doc.metadata["chunk_id"] = f"{doc.metadata['source']}-{i}"

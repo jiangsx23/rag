@@ -3,7 +3,9 @@
 generate_stream() 直接调 self.llm.stream()（不经过 LangChain chain），
 mock 的 .stream() 返回值会被直接使用，无 RunnableLambda 包装问题。
 """
+
 from unittest.mock import MagicMock
+
 from langchain_core.messages import AIMessageChunk
 
 from core.generator import Generator
@@ -19,6 +21,7 @@ def _mock_stream(tokens: list[str]):
 # ============================================
 # 1. 正常流式生成
 # ============================================
+
 
 def test_generate_stream_yields_tokens():
     """generate_stream 应逐 token yield"""
@@ -37,6 +40,7 @@ def test_generate_stream_concatenates_to_full():
 # ============================================
 # 2. 边界条件
 # ============================================
+
 
 def test_generate_stream_empty():
     """LLM 流返回空列表 → yield 空"""
@@ -70,12 +74,14 @@ def test_generate_stream_single_chunk():
 # 3. 异常处理
 # ============================================
 
+
 def test_generate_stream_llm_error():
     """LLM stream 抛异常 → 异常透传"""
     bad_llm = MagicMock()
     bad_llm.stream.side_effect = RuntimeError("stream failed")
 
     import pytest
+
     gen = Generator(llm=bad_llm)
     with pytest.raises(RuntimeError, match="stream failed"):
         next(gen.generate_stream("q", "c"))

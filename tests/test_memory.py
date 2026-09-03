@@ -8,21 +8,24 @@
 
 注意：用 fakeredis 替代真实 Redis，测试不依赖外部服务。
 """
-import pytest
+
 import time
-from langchain_core.messages import HumanMessage, AIMessage
+
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 
 from core.memory import MemoryManager, SessionMemory
-
 
 # ============================================
 # Fixture
 # ============================================
 
+
 @pytest.fixture
 def memory():
     """每个测试用独立的 fakeredis 实例，互不污染"""
     import fakeredis
+
     fake_client = fakeredis.FakeStrictRedis(decode_responses=True)
     return MemoryManager(redis_client=fake_client)
 
@@ -37,6 +40,7 @@ def test_user_id():
 # 1. 指代消解（核心面试点）
 # ============================================
 
+
 def test_query_rewriting_solves_coreference(memory, test_user_id):
     """测试指代消解：'那病假呢？' 应改写为含'病假'的问题
 
@@ -49,15 +53,13 @@ def test_query_rewriting_solves_coreference(memory, test_user_id):
 
     rewritten = memory.rewrite_query_with_context("那病假呢？", session)
 
-    print(f"\n[原 query] 那病假呢？")
+    print("\n[原 query] 那病假呢？")
     print(f"[改写后]   {rewritten}")
 
     # 关键断言：改写结果必须包含"病假"关键词
-    assert "病假" in rewritten, \
-        f"改写结果应包含'病假'关键词，实际: {rewritten}"
+    assert "病假" in rewritten, f"改写结果应包含'病假'关键词，实际: {rewritten}"
     # 不应该还是"那病假呢？"这种带指代的形式
-    assert not rewritten.startswith("那"), \
-        f"改写后不应保留指代词'那'，实际: {rewritten}"
+    assert not rewritten.startswith("那"), f"改写后不应保留指代词'那'，实际: {rewritten}"
 
 
 def test_query_rewriting_multiple_references(memory, test_user_id):
@@ -77,13 +79,15 @@ def test_query_rewriting_multiple_references(memory, test_user_id):
         print(f"[{query}] -> [{rewritten}]")
 
         if must_contain:
-            assert must_contain in rewritten, \
-                f"'{query}' 应改写为含'{must_contain}'的问题，实际: {rewritten}"
+            assert (
+                must_contain in rewritten
+            ), f"'{query}' 应改写为含'{must_contain}'的问题，实际: {rewritten}"
 
 
 # ============================================
 # 2. 无历史时直接返回原 query（边界条件）
 # ============================================
+
 
 def test_query_rewriting_no_history(memory, test_user_id):
     """无对话历史时，query 改写应该直接返回原 query
@@ -98,13 +102,15 @@ def test_query_rewriting_no_history(memory, test_user_id):
     original = "公司年假几天？"
     rewritten = memory.rewrite_query_with_context(original, session)
 
-    assert rewritten == original, \
-        f"无历史时应直接返回原 query，期望 '{original}'，实际 '{rewritten}'"
+    assert (
+        rewritten == original
+    ), f"无历史时应直接返回原 query，期望 '{original}'，实际 '{rewritten}'"
 
 
 # ============================================
 # 3. Session 持久化（Redis 核心价值）
 # ============================================
+
 
 def test_session_persistence(memory, test_user_id):
     """测试 session 持久化：保存后能从 Redis 重新加载
@@ -126,8 +132,7 @@ def test_session_persistence(memory, test_user_id):
     loaded = memory.get_or_create_session(test_user_id, session_id)
 
     # 3. 断言：消息完整恢复
-    assert len(loaded.messages) == 3, \
-        f"应恢复 3 条消息，实际 {len(loaded.messages)}"
+    assert len(loaded.messages) == 3, f"应恢复 3 条消息，实际 {len(loaded.messages)}"
     assert loaded.messages[0].content == "测试问题1"
     assert loaded.messages[1].content == "测试回答1"
     assert loaded.messages[2].content == "测试问题2"
@@ -148,8 +153,7 @@ def test_session_isolation(memory):
 
     session_b = memory.get_or_create_session(user_b)
     # user_b 的 session 应该是空的
-    assert len(session_b.messages) == 0, \
-        "不同 user 的 session 不应共享数据"
+    assert len(session_b.messages) == 0, "不同 user 的 session 不应共享数据"
 
     # 清理
     memory.redis.delete(f"session:{user_a}:{session_a.session_id}")
@@ -158,6 +162,7 @@ def test_session_isolation(memory):
 # ============================================
 # 4. 滑窗压缩（>max_messages 触发摘要）
 # ============================================
+
 
 def test_sliding_window_compression(memory, test_user_id):
     """测试滑窗：消息数超过 max_messages 时应触发摘要压缩
@@ -184,8 +189,7 @@ def test_sliding_window_compression(memory, test_user_id):
     memory.save(session)
 
     # 保存后应该只保留最近 max_messages 条
-    assert len(session.messages) == 5, \
-        f"滑窗后应保留 5 条，实际 {len(session.messages)}"
+    assert len(session.messages) == 5, f"滑窗后应保留 5 条，实际 {len(session.messages)}"
 
     # 摘要应已生成（如果 LLM 可用）
     # 注：如果 DeepSeek 不可用，summary 可能是空字符串（兜底逻辑）
@@ -203,6 +207,7 @@ def test_sliding_window_compression(memory, test_user_id):
 # 5. 工具方法测试
 # ============================================
 
+
 def test_session_id_generation(memory):
     """session_id 应基于 user_id + time 生成，保证唯一性"""
     user_id = "test_user_id_gen"
@@ -215,8 +220,7 @@ def test_session_id_generation(memory):
     assert len(sid_1) == 16, f"session_id 长度应为 16，实际 {len(sid_1)}"
 
     # 验证是 md5 hex 格式
-    assert all(c in "0123456789abcdef" for c in sid_1), \
-        "session_id 应该是 hex 字符"
+    assert all(c in "0123456789abcdef" for c in sid_1), "session_id 应该是 hex 字符"
 
 
 def test_serialize_deserialize_roundtrip(memory, test_user_id):
@@ -231,7 +235,7 @@ def test_serialize_deserialize_roundtrip(memory, test_user_id):
 
     # 序列化 → 反序列化
     serialized = memory._serialize(original)
-    json_str = __import__('json').dumps(serialized, ensure_ascii=False)
+    json_str = __import__("json").dumps(serialized, ensure_ascii=False)
     deserialized = memory._deserialize(json_str)
 
     assert deserialized.session_id == "test_sid_123"

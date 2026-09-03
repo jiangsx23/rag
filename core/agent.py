@@ -6,13 +6,14 @@
 3. ReAct Agent 跑改写后的问题（可能多步调工具）
 4. 把本轮问答写回 session
 """
-from langchain_core.messages import HumanMessage, AIMessage
+
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.logger import logger
-from core.react_agent import ReActAgent
 from core.memory import MemoryManager
-from core.tools import TOOLS, TOOL_DESCRIPTIONS
 from core.observability import observe, span, update_current, update_trace
+from core.react_agent import ReActAgent
+from core.tools import TOOL_DESCRIPTIONS, TOOLS
 
 
 class MultiTurnAgent:
@@ -57,6 +58,7 @@ class MultiTurnAgent:
         if result.finished_reason == "final_answer":
             try:
                 from core.reflection import ReflectionModule
+
                 reflection = ReflectionModule()
                 evaluation = reflection.evaluate(
                     question=question,
@@ -70,10 +72,12 @@ class MultiTurnAgent:
                     "issues": evaluation.issues,
                     "suggestion": evaluation.suggestion,
                 }
-                update_current(metadata={
-                    "reflection_score": evaluation.score,
-                    "reflection_acceptable": evaluation.is_acceptable,
-                })
+                update_current(
+                    metadata={
+                        "reflection_score": evaluation.score,
+                        "reflection_acceptable": evaluation.is_acceptable,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Agent reflection skipped (non-blocking): {e}")
 

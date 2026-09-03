@@ -3,7 +3,9 @@
 RAG 模式：    检索 → 生成 → 反思（带来源和改写 query 展示）
 Agent 模式：  ReAct 多步调工具 → 展示完整决策树（Thought → Action → Observation）
 """
+
 import json
+
 import requests
 import streamlit as st
 
@@ -38,9 +40,7 @@ def load_sessions(force: bool = False) -> list:
     if not force and st.session_state.session_list_cache is not None:
         return st.session_state.session_list_cache
     try:
-        r = requests.get(
-            f"{API_BASE}/sessions/{st.session_state.user_id}", timeout=5
-        )
+        r = requests.get(f"{API_BASE}/sessions/{st.session_state.user_id}", timeout=5)
         if r.ok:
             st.session_state.session_list_cache = r.json().get("sessions", [])
             return st.session_state.session_list_cache
@@ -52,6 +52,7 @@ def load_sessions(force: bool = False) -> list:
 # ============================================
 # 工具函数：渲染 Agent 步骤树
 # ============================================
+
 
 def render_agent_steps(steps: list[dict]):
     """把 Agent 的 Thought/Action/Observation 渲染为可视化的步骤树"""
@@ -209,9 +210,7 @@ for msg in st.session_state.messages:
 # 输入框
 # ============================================
 user_input = st.chat_input(
-    "请输入问题"
-    if st.session_state.mode == "RAG"
-    else "请输入问题（Agent 会自动选择工具）"
+    "请输入问题" if st.session_state.mode == "RAG" else "请输入问题（Agent 会自动选择工具）"
 )
 
 if user_input:
@@ -239,7 +238,9 @@ if user_input:
                 resp.raise_for_status()
                 result = resp.json()
             except requests.exceptions.ConnectionError:
-                st.error("❌ 连不上后端（http://localhost:8000）。请先 `uvicorn app.api:app --reload`")
+                st.error(
+                    "❌ 连不上后端（http://localhost:8000）。请先 `uvicorn app.api:app --reload`"
+                )
                 st.stop()
             except requests.exceptions.Timeout:
                 st.error("⏱️ 后端超时，请重试")
@@ -272,7 +273,8 @@ if user_input:
                 score = reflection.get("score", "?")
                 acceptable = reflection.get("is_acceptable", False)
                 label = "✅ 通过" if acceptable else "⚠️ 需改进"
-                with st.expander(f"🧠 LLM-as-Judge 反思评估（评分 {score}/10 {label}）", expanded=False):
+                judge_title = f"🧠 LLM-as-Judge 反思评估（评分 {score}/10 {label}）"
+                with st.expander(judge_title, expanded=False):
                     st.json(reflection)
 
         # 保存 Agent 消息
@@ -344,7 +346,8 @@ if user_input:
                             for i, src in enumerate(sources, 1):
                                 meta = src.get("metadata", {})
                                 st.markdown(
-                                    f"**[{i}]** `{meta.get('source', '?')}` · 页码 `{meta.get('page', '?')}`"
+                                    f"**[{i}]** `{meta.get('source', '?')}` · "
+                                    f"页码 `{meta.get('page', '?')}`"
                                 )
                                 st.caption(src.get("content", "")[:200])
 
@@ -356,7 +359,8 @@ if user_input:
                         score = reflection.get("score", "?")
                         acceptable = reflection.get("is_acceptable", False)
                         label = "✅ 通过" if acceptable else "⚠️ 需改进"
-                        with st.expander(f"🧠 LLM-as-Judge 反思评估（评分 {score}/10 {label}）", expanded=False):
+                        judge_title = f"🧠 LLM-as-Judge 反思评估（评分 {score}/10 {label}）"
+                        with st.expander(judge_title, expanded=False):
                             st.json(reflection)
 
                     if timing:
